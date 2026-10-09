@@ -1,13 +1,13 @@
-# Runs a Perl accessor-generator script and captures its stdout to OUTFILE.
+# Runs a Python accessor-generator script and captures its stdout to OUTFILE.
 #
 # execute_process()'s OUTPUT_FILE redirects without needing a shell, so this
 # works the same under every CMake generator (Ninja, Makefiles, Visual
 # Studio, ...), unlike `COMMAND ... > file` in add_custom_command.
 #
-# Expects PERL_EXECUTABLE, SCRIPT, TXTFILE and OUTFILE to be passed via -D.
+# Expects PYTHON3_EXECUTABLE, SCRIPT, TXTFILE and OUTFILE to be passed via -D.
 
 execute_process(
-    COMMAND ${PERL_EXECUTABLE} ${SCRIPT} ${TXTFILE}
+    COMMAND ${PYTHON3_EXECUTABLE} ${SCRIPT} ${TXTFILE}
     OUTPUT_FILE ${OUTFILE}
     RESULT_VARIABLE result
 )

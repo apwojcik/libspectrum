@@ -34,7 +34,7 @@ typedef struct {
 } rom_decoder;
 
 static int
-near( libspectrum_dword duration, unsigned nominal )
+is_near( libspectrum_dword duration, unsigned nominal )
 {
   unsigned tolerance = nominal / 20;
   return duration >= nominal - tolerance && duration <= nominal + tolerance;
@@ -81,22 +81,22 @@ pulse( rom_decoder *d, libspectrum_dword duration )
     d->gap_pulses = 1;
     return 1;
   case PILOT:
-    if( d->pilot < 256 || !near( duration, 667 ) ) return 0;
+    if( d->pilot < 256 || !is_near( duration, 667 ) ) return 0;
     d->phase = SYNC2;
     return 1;
   case SYNC2:
-    if( !near( duration, 735 ) ) return 0;
+    if( !is_near( duration, 735 ) ) return 0;
     d->phase = DATA;
     d->used = d->bits = d->byte = d->checksum = 0;
     d->half = -1;
     return 1;
   case DATA:
-    if( near( duration, 855 ) ) return bit_pulse( d, 0 );
-    if( near( duration, 1710 ) ) return bit_pulse( d, 1 );
+    if( is_near( duration, 855 ) ) return bit_pulse( d, 0 );
+    if( is_near( duration, 1710 ) ) return bit_pulse( d, 1 );
     /* A ROM tail or silence terminates data only at a valid byte boundary.
        pulse_run() also allows a following pilot to delimit blocks. */
     if( !finish_data( d ) ) return 0;
-    if( near( duration, 945 ) ) return 1;
+    if( is_near( duration, 945 ) ) return 1;
     return pulse( d, duration );
   }
   return 0;
@@ -107,7 +107,7 @@ pulse_run( rom_decoder *d, libspectrum_dword duration, size_t count )
 {
   size_t i;
   if( !count || duration > 0x7fffffff ) return 0;
-  if( near( duration, 2168 ) ) {
+  if( is_near( duration, 2168 ) ) {
     if( d->phase == DATA && !finish_data( d ) ) return 0;
     if( d->phase != GAP && d->phase != PILOT ) return 0;
     if( d->phase == GAP ) d->pilot = 0;

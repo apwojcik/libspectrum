@@ -39,6 +39,7 @@ option(LIBGCRYPT_SUPPORT "Use libgcrypt for RZX signing/verification" ON)
 option(USE_FAKE_GLIB "Use the bundled myglib/ GLib replacement instead of real GLib" ${WIN32})
 
 include(FetchContent)
+include(GNUInstallDirs)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
@@ -316,3 +317,37 @@ set_target_properties(spectrum PROPERTIES
     SOVERSION ${PROJECT_VERSION_MAJOR})
 
 target_compile_definitions(spectrum PRIVATE LIBSPECTRUM_EXPORTS)
+
+# --- Install ------------------------------------------------------------
+# Mirrors the autotools install (lib_LTLIBRARIES, nodist_include_HEADERS,
+# pkgconfig_DATA in Makefile.am): the library itself, the generated public
+# header, and a pkg-config file derived from the same libspectrum.pc.in
+# template autotools uses.
+
+install(TARGETS spectrum
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+install(FILES ${LIBSPECTRUM_H} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+set(WAV_BACKEND_PRIVATE_LIBS "")
+if(HAVE_WAV_BACKEND)
+    if(APPLE)
+        set(WAV_BACKEND_PRIVATE_LIBS "-framework AudioToolbox -framework CoreFoundation")
+    elseif(audiofile_FOUND)
+        set(WAV_BACKEND_PRIVATE_LIBS "${AUDIOFILE_LDFLAGS}")
+    endif()
+endif()
+
+set(prefix ${CMAKE_INSTALL_PREFIX})
+set(exec_prefix "\${prefix}")
+set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+set(PACKAGE_VERSION ${PROJECT_VERSION})
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libspectrum.pc.in
+               ${CMAKE_CURRENT_BINARY_DIR}/libspectrum.pc @ONLY)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libspectrum.pc
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)

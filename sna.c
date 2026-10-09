@@ -372,7 +372,7 @@ libspectrum_sna_write( libspectrum_buffer *buffer, int *out_flags,
   case LIBSPECTRUM_MACHINE_TC2068:
   case LIBSPECTRUM_MACHINE_TS2068:
     *out_flags |= LIBSPECTRUM_FLAG_SNAPSHOT_MAJOR_INFO_LOSS;
-    /* Fall through */
+    [[fallthrough]];
   case LIBSPECTRUM_MACHINE_16:
   case LIBSPECTRUM_MACHINE_48:
     error = write_48k_sna( buffer_mem, snap, &snap_sp );
@@ -389,7 +389,7 @@ libspectrum_sna_write( libspectrum_buffer *buffer, int *out_flags,
   case LIBSPECTRUM_MACHINE_SCORP:
   case LIBSPECTRUM_MACHINE_SE:
     *out_flags |= LIBSPECTRUM_FLAG_SNAPSHOT_MAJOR_INFO_LOSS;
-    /* Fall through */
+    [[fallthrough]];
   case LIBSPECTRUM_MACHINE_PENT:
     snap_sp = libspectrum_snap_sp ( snap );
     write_128k_sna( buffer_mem, snap );

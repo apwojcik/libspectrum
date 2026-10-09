@@ -71,7 +71,7 @@ libspectrum_dck_free( libspectrum_dck *dck, int keep_pages )
   for( i=0; i<256; i++ )
     if( dck->dck[i] ) {
       libspectrum_dck_block_free( dck->dck[i], keep_pages );
-      dck->dck[i] = NULL;
+      dck->dck[i] = nullptr;
     }
 
   return LIBSPECTRUM_ERROR_NONE;
@@ -82,7 +82,7 @@ libspectrum_error
 libspectrum_dck_read( libspectrum_dck *dck, const libspectrum_byte *buffer,
 		      const size_t length )
 {
-  return libspectrum_dck_read2( dck, buffer, length, NULL );
+  return libspectrum_dck_read2( dck, buffer, length, nullptr );
 }
 
 libspectrum_error
@@ -104,7 +104,7 @@ libspectrum_dck_read2( libspectrum_dck *dck, const libspectrum_byte *buffer,
 
   /* For storing the uncompressed data in if the input file was
      compressed */
-  new_buffer = NULL;
+  new_buffer = nullptr;
 
   error = libspectrum_identify_file_raw( &raw_type, filename, buffer, length );
   if( error ) return error;
@@ -116,15 +116,15 @@ libspectrum_dck_read2( libspectrum_dck *dck, const libspectrum_byte *buffer,
 
     size_t new_length;
 
-    error = libspectrum_uncompress_file( &new_buffer, &new_length, NULL,
-                                         raw_type, buffer, length, NULL );
+    error = libspectrum_uncompress_file( &new_buffer, &new_length, nullptr,
+                                         raw_type, buffer, length, nullptr );
     if( error ) return error;
     buffer = new_buffer; length = new_length;
   }
 
   end = buffer + length;
 
-  for( i=0; i<256; i++ ) dck->dck[i]=NULL;
+  for( i=0; i<256; i++ ) dck->dck[i]=nullptr;
 
   while( buffer < end ) {
     int pages = 0;

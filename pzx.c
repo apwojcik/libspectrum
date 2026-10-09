@@ -50,5 +50,5 @@ internal_pzx_archive_name( int id )
   size_t i;
   for( i = 0; i < ARRAY_SIZE( archive_info ); i++ )
     if( id == archive_info[i].id ) return archive_info[i].name;
-  return NULL;
+  return nullptr;
 }

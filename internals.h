@@ -25,6 +25,11 @@
 #ifndef LIBSPECTRUM_INTERNALS_H
 #define LIBSPECTRUM_INTERNALS_H
 
+/* A no-op on compilers where bool/true/false are already C23 keywords;
+   still needed on compilers (e.g. this MSVC toolset) that report C23 via
+   __STDC_VERSION__ but haven't implemented the keywords yet. */
+#include <stdbool.h>
+
 #ifdef HAVE_LIB_GLIB		/* Only if we've got the real glib */
 #include <glib.h>
 #endif				/* #ifdef HAVE_LIB_GLIB */
@@ -33,11 +38,14 @@
 #include "libspectrum.h"
 #endif				/* #ifndef LIBSPECTRUM_LIBSPECTRUM_H */
 
+/* [[maybe_unused]] is a standard C23 attribute, so this no longer needs to
+   be conditional on __GNUC__. GCC's format attribute has no C23 standard
+   equivalent, so that one stays GNU-only. */
+#define GCC_UNUSED [[maybe_unused]]
+
 #ifdef __GNUC__
-#define GCC_UNUSED __attribute__ ((unused))
 #define GCC_PRINTF( fmtstring, args ) __attribute__ ((format( printf, fmtstring, args )))
 #else				/* #ifdef __GNUC__ */
-#define GCC_UNUSED
 #define GCC_PRINTF( fmtstring, args )
 #endif				/* #ifdef __GNUC__ */
 
@@ -47,6 +55,14 @@
 #else				/* #if _MSC_VER > 1200 */
 #define __func__ "__func__"
 #endif				/* _MSC_VER > 1200 */
+
+/* This MSVC toolset reports __STDC_VERSION__ >= 202311L under /std:clatest
+   but doesn't yet implement the C23 nullptr keyword, so provide it as a
+   macro in C mode (nullptr is a genuine keyword in C++, so leave that
+   alone). */
+#ifndef __cplusplus
+#define nullptr ((void *)0)
+#endif				/* #ifndef __cplusplus */
 #endif				/* #ifdef _MSC_VER */
 
 #if defined(__GNUC__) && defined(__GNUC_MINOR__)

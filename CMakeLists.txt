@@ -18,8 +18,7 @@ project(libspectrum VERSION 1.8.0 LANGUAGES C)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# configure.ac requires a C11-or-later compiler project-wide (checked via
-# AC_COMPILE_IFELSE); the CMake build targets C23.
+# configure.ac also requires C23 project-wide (checked via AC_COMPILE_IFELSE).
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 

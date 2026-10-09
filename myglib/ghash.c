@@ -59,8 +59,8 @@ struct _GHashTable
   GDestroyNotify	value_destroy_func;
 };
 
-static GHashNode *node_free_list = NULL;
-static GHashNode *node_allocated_list = NULL;
+static GHashNode *node_free_list = nullptr;
+static GHashNode *node_allocated_list = nullptr;
 
 static atomic_flag atomic_locker = ATOMIC_FLAG_INIT;
 
@@ -77,7 +77,7 @@ GHashTable*
 g_hash_table_new (GHashFunc	hash_func,
 		  GCompareFunc	key_equal_func)
 {
-  return g_hash_table_new_full( hash_func, key_equal_func, NULL, NULL );
+  return g_hash_table_new_full( hash_func, key_equal_func, nullptr, nullptr );
 }
 
 GHashTable*
@@ -99,7 +99,7 @@ g_hash_table_new_full (GHashFunc       hash_func,
   hash_table->nodes = libspectrum_malloc (HASH_TABLE_SIZE * sizeof (GHashNode*));
 
   for (i = 0; i < HASH_TABLE_SIZE; i++)
-    hash_table->nodes[i] = NULL;
+    hash_table->nodes[i] = nullptr;
 
   return hash_table;
 }
@@ -178,7 +178,7 @@ g_hash_table_lookup (GHashTable   *hash_table,
 
   node = *g_hash_table_lookup_node (hash_table, key);
 
-  return node ? node->value : NULL;
+  return node ? node->value : nullptr;
 }
 
 static GHashNode*
@@ -196,7 +196,7 @@ g_hash_node_new (gpointer key,
 
       for(i = 0; i < 1023; i++ )
 	node_free_list[i].next = &node_free_list[i+1];
-      node_free_list[1023].next = NULL;
+      node_free_list[1023].next = nullptr;
     }
 
   
@@ -206,7 +206,7 @@ g_hash_node_new (gpointer key,
 
   hash_node->key = key;
   hash_node->value = value;
-  hash_node->next = NULL;
+  hash_node->next = nullptr;
   
   return hash_node;
 }
@@ -267,7 +267,7 @@ g_hash_table_foreach_remove (GHashTable *hash_table,
     {
     restart:
       
-      prev = NULL;
+      prev = nullptr;
       
       for (node = hash_table->nodes[i]; node; prev = node, node = node->next)
         {
@@ -361,8 +361,8 @@ libspectrum_hashtable_cleanup( void )
 {
   lock();
   libspectrum_free( node_allocated_list );
-  node_allocated_list = NULL;
-  node_free_list = NULL;
+  node_allocated_list = nullptr;
+  node_free_list = nullptr;
   unlock();
 }
 #endif				/* #ifndef HAVE_LIB_GLIB */

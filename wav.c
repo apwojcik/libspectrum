@@ -30,10 +30,10 @@
 libspectrum_error
 libspectrum_wav_read( libspectrum_tape *tape, const char *filename )
 {
-  libspectrum_wav_reader *reader = NULL;
-  libspectrum_signed_word *buffer = NULL;
-  libspectrum_byte *tape_buffer = NULL;
-  libspectrum_tape_block *block = NULL;
+  libspectrum_wav_reader *reader = nullptr;
+  libspectrum_signed_word *buffer = nullptr;
+  libspectrum_byte *tape_buffer = nullptr;
+  libspectrum_tape_block *block = nullptr;
   size_t sample_rate, length, tape_length, data_length;
   size_t total_frames = 0, frames_read;
   libspectrum_error error;
@@ -111,10 +111,10 @@ libspectrum_wav_read( libspectrum_tape *tape, const char *filename )
   }
 
   libspectrum_tape_block_set_data( block, tape_buffer );
-  tape_buffer = NULL; /* block owns the buffer now */
+  tape_buffer = nullptr; /* block owns the buffer now */
   error = libspectrum_tape_append_block( tape, block );
   if( error ) goto error;
-  block = NULL; /* tape owns the block now */
+  block = nullptr; /* tape owns the block now */
 
   internal_wav_close( reader );
   libspectrum_free( buffer );

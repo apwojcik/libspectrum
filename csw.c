@@ -35,7 +35,7 @@ libspectrum_error
 libspectrum_csw_read( libspectrum_tape *tape,
                       const libspectrum_byte *buffer, size_t length )
 {
-  libspectrum_tape_block *block = NULL;
+  libspectrum_tape_block *block = nullptr;
   libspectrum_tape_rle_pulse_block *csw_block;
   int compressed, initial_high = 0;
   size_t signature_length = strlen( csw_signature );
@@ -88,7 +88,7 @@ libspectrum_csw_read( libspectrum_tape *tape,
   if( !length ) goto csw_empty;
   if( compressed ) {
 #ifdef HAVE_ZLIB_H
-    csw_block->data = NULL;
+    csw_block->data = nullptr;
     csw_block->length = 0;
     libspectrum_error error = libspectrum_zlib_inflate( buffer, length,
       &csw_block->data, &csw_block->length );

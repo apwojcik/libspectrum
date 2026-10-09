@@ -140,7 +140,7 @@ get_joystick_type_v3( libspectrum_snap *snap,
 static libspectrum_error
 read_blocks( const libspectrum_byte *buffer, size_t buffer_length,
 	     libspectrum_snap *snap, int version, int compressed );
-static int
+static bool
 spectaculator_61_scorpion_pages( const libspectrum_byte *buffer,
                                  size_t buffer_length,
                                  libspectrum_snap *snap, int version );
@@ -723,7 +723,7 @@ read_blocks( const libspectrum_byte *buffer, size_t buffer_length,
   return LIBSPECTRUM_ERROR_NONE;
 }
 
-static int
+static bool
 spectaculator_61_scorpion_pages( const libspectrum_byte *buffer,
                                  size_t buffer_length,
                                  libspectrum_snap *snap, int version )
@@ -734,7 +734,7 @@ spectaculator_61_scorpion_pages( const libspectrum_byte *buffer,
 
   if( version < 2 ||
       libspectrum_snap_machine( snap ) != LIBSPECTRUM_MACHINE_SCORP )
-    return 0;
+    return false;
 
   ptr = buffer; end = buffer + buffer_length;
 
@@ -742,18 +742,18 @@ spectaculator_61_scorpion_pages( const libspectrum_byte *buffer,
     size_t length;
     int page;
 
-    if( end - ptr < 3 ) return 0;
+    if( end - ptr < 3 ) return false;
 
     length = ptr[0] + ptr[1] * 0x100;
     page = ptr[2];
 
-    if( page > 15 || ( pages & ( 1U << page ) ) ) return 0;
+    if( page > 15 || ( pages & ( 1U << page ) ) ) return false;
 
     pages |= 1U << page;
     count++;
 
     if( length == 0xffff ) length = 0x4000;
-    if( end - ptr - 3 < (ptrdiff_t)length ) return 0;
+    if( end - ptr - 3 < (ptrdiff_t)length ) return false;
 
     ptr += 3 + length;
   }
@@ -1014,7 +1014,7 @@ read_block( const libspectrum_byte *buffer, libspectrum_snap *snap,
     /* Now map onto RAM page numbers */
     page -= 3;
 
-    if( libspectrum_snap_pages( snap, page ) == NULL ) {
+    if( libspectrum_snap_pages( snap, page ) == nullptr ) {
       libspectrum_snap_set_pages( snap, page, uncompressed );
     } else {
       libspectrum_free( uncompressed );
@@ -1392,7 +1392,7 @@ write_extended_header( libspectrum_buffer *buffer, int *flags,
   switch( libspectrum_snap_machine( snap ) ) {
   case LIBSPECTRUM_MACHINE_48_NTSC:
     *flags |= LIBSPECTRUM_FLAG_SNAPSHOT_MAJOR_INFO_LOSS;
-    /* fall through */
+    [[fallthrough]];
   case LIBSPECTRUM_MACHINE_16:
   case LIBSPECTRUM_MACHINE_48:
     if( libspectrum_snap_plusd_active( snap ) ) {
@@ -1406,7 +1406,7 @@ write_extended_header( libspectrum_buffer *buffer, int *flags,
   case LIBSPECTRUM_MACHINE_SE:
   case LIBSPECTRUM_MACHINE_128E:
     *flags |= LIBSPECTRUM_FLAG_SNAPSHOT_MAJOR_INFO_LOSS;
-    /* fall through */
+    [[fallthrough]];
   case LIBSPECTRUM_MACHINE_128:
     if( libspectrum_snap_plusd_active( snap ) ) {
       machine_byte = Z80_MACHINE_128_MGT;
@@ -1418,7 +1418,7 @@ write_extended_header( libspectrum_buffer *buffer, int *flags,
     break;
   case LIBSPECTRUM_MACHINE_PLUS3E:
     *flags |= LIBSPECTRUM_FLAG_SNAPSHOT_MINOR_INFO_LOSS;
-    /* fall through */
+    [[fallthrough]];
   case LIBSPECTRUM_MACHINE_PLUS3:
     second_memory_port = 1;
     machine_byte = Z80_MACHINE_PLUS3;
@@ -1673,7 +1673,7 @@ write_pages( libspectrum_buffer *buffer, libspectrum_snap *snap, int compress )
 
   /* Do we want to write .slt data? Definitely if we've got a loading
      screen */
-  do_slt = libspectrum_snap_slt_screen( snap ) != NULL;
+  do_slt = libspectrum_snap_slt_screen( snap ) != nullptr;
 
   /* If not, see if any level data exists */
   for( i=0; !do_slt && i<256; i++ )
@@ -1687,7 +1687,7 @@ static void
 write_page( libspectrum_buffer *buffer, int page_num, libspectrum_byte *page,
             int compress )
 {
-  libspectrum_byte *compressed = NULL; size_t compressed_length;
+  libspectrum_byte *compressed = nullptr; size_t compressed_length;
 
   if( compress ) {
     compressed_length = 0;

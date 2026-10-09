@@ -443,7 +443,7 @@ struct libspectrum_tape_block {
 
   libspectrum_tape_type type;
 
-  /* The tape which owns this block, or NULL before it is attached. */
+  /* The tape which owns this block, or nullptr before it is attached. */
   libspectrum_tape *owner;
 
   union {

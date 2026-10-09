@@ -214,7 +214,7 @@ internal_tap_write( libspectrum_buffer *buffer, libspectrum_tape *tape,
     case LIBSPECTRUM_TAPE_BLOCK_HARDWARE:
     case LIBSPECTRUM_TAPE_BLOCK_CUSTOM:
     case LIBSPECTRUM_TAPE_BLOCK_CONCAT:
-      error = skip_block( block, NULL );
+      error = skip_block( block, nullptr );
       if( error != LIBSPECTRUM_ERROR_NONE ) { return error; }
       done = 1;
       break;

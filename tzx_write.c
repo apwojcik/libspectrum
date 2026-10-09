@@ -722,7 +722,7 @@ static libspectrum_error
 tzx_write_csw( libspectrum_tape_block *block, libspectrum_buffer *buffer )
 {
   libspectrum_tape_tzx_csw_block *csw = &block->types.tzx_csw;
-  libspectrum_byte *compressed = NULL, *data = csw->rle.data;
+  libspectrum_byte *compressed = nullptr, *data = csw->rle.data;
   size_t length = csw->rle.length, i;
   libspectrum_dword count = 0;
   libspectrum_byte compression = csw->compression;

@@ -508,7 +508,7 @@ libspectrum_zxs_read( libspectrum_snap *snap, const libspectrum_byte *buffer,
       libspectrum_byte *page = libspectrum_snap_pages( snap, i );
       if( page ) {
 	libspectrum_free( page );
-	libspectrum_snap_set_pages( snap, i, NULL );
+	libspectrum_snap_set_pages( snap, i, nullptr );
       }
     }
 

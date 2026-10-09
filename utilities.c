@@ -187,7 +187,7 @@ char*
 libspectrum_safe_strdup( const char *src )
 {
   size_t length;
-  char *dest = NULL;
+  char *dest = nullptr;
 
   if( src ) {
     length = strlen( src ) + 1;

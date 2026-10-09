@@ -326,9 +326,9 @@ libspectrum_ide_eject_from_drive( libspectrum_ide_drive *drv,
   if( !drv->disk ) return LIBSPECTRUM_ERROR_NONE;
 
   fclose( drv->disk );
-  drv->disk = NULL;
+  drv->disk = nullptr;
 
-  g_hash_table_foreach_remove( cache, clear_cache, NULL );
+  g_hash_table_foreach_remove( cache, clear_cache, nullptr );
   
   return LIBSPECTRUM_ERROR_NONE;
 }

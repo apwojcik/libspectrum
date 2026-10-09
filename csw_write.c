@@ -143,7 +143,7 @@ write_native_pause( csw_writer *writer, libspectrum_tape_block *block )
   return add_duration( writer, duration, level );
 }
 
-static int
+static bool
 is_native( libspectrum_tape_block *block )
 {
   libspectrum_tape_type type = libspectrum_tape_block_type( block );
@@ -180,7 +180,7 @@ write_event( csw_writer *writer, libspectrum_tape *tape )
   return add_duration( writer, duration, level );
 }
 
-static int
+static bool
 is_empty_rle( libspectrum_tape_block *block )
 {
   return libspectrum_tape_block_type( block ) == LIBSPECTRUM_TAPE_BLOCK_RLE_PULSE &&
@@ -226,7 +226,7 @@ static libspectrum_tape_block *
 find_recording( libspectrum_tape *tape, int *initial_high )
 {
   libspectrum_tape_iterator it;
-  libspectrum_tape_block *block, *recording = NULL;
+  libspectrum_tape_block *block, *recording = nullptr;
   for( block = libspectrum_tape_iterator_init( &it, tape ); block;
        block = libspectrum_tape_iterator_next( &it ) ) {
     switch( libspectrum_tape_block_type( block ) ) {
@@ -238,12 +238,12 @@ find_recording( libspectrum_tape *tape, int *initial_high )
     case LIBSPECTRUM_TAPE_BLOCK_CONCAT: break;
     case LIBSPECTRUM_TAPE_BLOCK_RLE_PULSE:
     case LIBSPECTRUM_TAPE_BLOCK_TZX_CSW:
-      if( recording || !libspectrum_tape_block_sample_rate( block ) ) return NULL;
+      if( recording || !libspectrum_tape_block_sample_rate( block ) ) return nullptr;
       if( libspectrum_tape_block_type( block ) == LIBSPECTRUM_TAPE_BLOCK_TZX_CSW &&
-          libspectrum_tape_block_pause_tstates( block ) ) return NULL;
+          libspectrum_tape_block_pause_tstates( block ) ) return nullptr;
       recording = block;
       break;
-    default: return NULL;
+    default: return nullptr;
     }
   }
   return recording;
@@ -323,7 +323,7 @@ write_file( libspectrum_buffer *out, csw_writer *writer, libspectrum_dword rate 
   libspectrum_byte compression = 1;
 #ifdef HAVE_ZLIB_H
   if( writer->pulses ) {
-    libspectrum_byte *compressed = NULL;
+    libspectrum_byte *compressed = nullptr;
     size_t length;
     libspectrum_error error = libspectrum_zlib_compress(
       libspectrum_buffer_get_data( writer->body ),

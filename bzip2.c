@@ -40,7 +40,7 @@ libspectrum_bzip2_inflate( const libspectrum_byte *bzptr, size_t bzlength,
   int error;
   unsigned int length2;
 
-  *outptr = NULL;
+  *outptr = nullptr;
 
   if( *outlength > max_outlength ) {
     *outlength = 0;
@@ -83,7 +83,7 @@ libspectrum_bzip2_inflate( const libspectrum_byte *bzptr, size_t bzlength,
     *outptr = libspectrum_new( libspectrum_byte, length );
 
     /* Use standard memory allocation/free routines */
-    stream.bzalloc = NULL; stream.bzfree = NULL; stream.opaque = NULL;
+    stream.bzalloc = nullptr; stream.bzfree = nullptr; stream.opaque = nullptr;
 
     error = BZ2_bzDecompressInit( &stream, 0, 0 );
     if( error != BZ_OK ) {
@@ -143,7 +143,7 @@ libspectrum_bzip2_inflate( const libspectrum_byte *bzptr, size_t bzlength,
               error = BZ2_bzDecompressEnd( &stream );
               if( error ) {
                 libspectrum_free( *outptr );
-                *outptr = NULL; *outlength = 0;
+                *outptr = nullptr; *outlength = 0;
                 return LIBSPECTRUM_ERROR_LOGIC;
               }
               *outlength = length;
@@ -154,7 +154,7 @@ libspectrum_bzip2_inflate( const libspectrum_byte *bzptr, size_t bzlength,
                                      "inflated data exceeds size limit" );
             BZ2_bzDecompressEnd( &stream );
             libspectrum_free( *outptr );
-            *outptr = NULL; *outlength = 0;
+            *outptr = nullptr; *outlength = 0;
             return LIBSPECTRUM_ERROR_LIMIT;
           }
 

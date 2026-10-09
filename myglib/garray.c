@@ -44,7 +44,7 @@ g_array_new( gboolean zero_terminated, gboolean clear, guint element_size )
   array = libspectrum_malloc( sizeof( *array ) );
 
   array->element_size = element_size;
-  array->data = NULL;
+  array->data = nullptr;
   array->len = array->allocated = 0;
 
   return array;
@@ -120,11 +120,11 @@ g_array_free( GArray *array, gboolean free_segment )
 {
   gchar* segment;
 
-  if( !array ) return NULL;
+  if( !array ) return nullptr;
 
   if( free_segment ) {
     libspectrum_free( array->data );
-    segment = NULL;
+    segment = nullptr;
   }
   else
     segment = array->data;

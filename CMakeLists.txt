@@ -41,6 +41,7 @@ option(USE_FAKE_GLIB "Use the bundled myglib/ GLib replacement instead of real G
 include(FetchContent)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+find_package(Perl REQUIRED)
 
 # --- Feature detection for config.h -------------------------------------
 # Mirrors the autoconf checks in configure.ac; see cmake/config.h.cmake.in.
@@ -69,7 +70,7 @@ set(LIBSPECTRUM_OPTIONAL_LIBS "")
 # these two files are zlib-only and #include <zlib.h> unconditionally, so
 # they're only added to the library below when zlib is actually found).
 if(ZLIB_SUPPORT)
-    find_package(ZLIB)
+    find_package(ZLIB QUIET)
     if(ZLIB_FOUND)
         set(HAVE_ZLIB_H TRUE)
         list(APPEND LIBSPECTRUM_OPTIONAL_LIBS ZLIB::ZLIB)
@@ -81,7 +82,7 @@ endif()
 # bzip2: optional; bzip2.c is always compiled and self-guards internally
 # on HAVE_LIBBZ2, so no source-list change is needed here.
 if(BZIP2_SUPPORT)
-    find_package(BZip2)
+    find_package(BZip2 QUIET)
     if(BZIP2_FOUND)
         set(HAVE_LIBBZ2 TRUE)
         list(APPEND LIBSPECTRUM_OPTIONAL_LIBS BZip2::BZip2)
@@ -139,6 +140,26 @@ else()
     list(APPEND LIBSPECTRUM_OPTIONAL_LIBS PkgConfig::GLIB)
 endif()
 
+# libaudiofile: optional non-Apple WAV backend, found via pkg-config as in
+# configure.ac. Not every platform building this (e.g. Windows, with
+# USE_FAKE_GLIB default ON) has pkg-config available, so probe for it
+# rather than requiring it outright.
+set(audiofile_FOUND FALSE)
+if(WAV_SUPPORT AND NOT APPLE)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(AUDIOFILE QUIET IMPORTED_TARGET audiofile)
+        if(AUDIOFILE_FOUND)
+            set(audiofile_FOUND TRUE)
+            list(APPEND LIBSPECTRUM_OPTIONAL_LIBS PkgConfig::AUDIOFILE)
+        else()
+            message(STATUS "libaudiofile not found, building without WAV support")
+        endif()
+    else()
+        message(STATUS "pkg-config not found, building without WAV support")
+    endif()
+endif()
+
 # Mirrors what the WAV_SUPPORT/audiofile_FOUND logic further down actually
 # resolves to, so the public header's LIBSPECTRUM_SUPPORTS_WAV macro
 # doesn't claim support that isn't backed by a compiled backend.
@@ -176,8 +197,37 @@ add_custom_command(
     COMMENT "Generating libspectrum.h"
     VERBATIM)
 
+# snap_accessors.c / tape_accessors.c / tape_set.c are generated from the
+# *_accessors.txt spec files by the matching Perl script (see CLAUDE.md's
+# "Generated code" section); each field declared there becomes a getter/
+# setter pair that the rest of the library links against.
+function(generate_accessor_source OUTVAR SCRIPT TXTFILE)
+    set(outfile ${CMAKE_CURRENT_BINARY_DIR}/${OUTVAR})
+    add_custom_command(
+        OUTPUT ${outfile}
+        COMMAND ${CMAKE_COMMAND}
+                -DPERL_EXECUTABLE=${PERL_EXECUTABLE}
+                -DSCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/${SCRIPT}
+                -DTXTFILE=${CMAKE_CURRENT_SOURCE_DIR}/${TXTFILE}
+                -DOUTFILE=${outfile}
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateAccessors.cmake
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        DEPENDS
+            ${CMAKE_CURRENT_SOURCE_DIR}/${SCRIPT}
+            ${CMAKE_CURRENT_SOURCE_DIR}/${TXTFILE}
+        COMMENT "Generating ${OUTVAR}"
+        VERBATIM)
+endfunction()
+
+generate_accessor_source(snap_accessors.c accessor.pl snap_accessors.txt)
+generate_accessor_source(tape_accessors.c tape_accessors.pl tape_accessors.txt)
+generate_accessor_source(tape_set.c tape_set.pl tape_accessors.txt)
+
 add_library(spectrum
     ${LIBSPECTRUM_H}
+    ${CMAKE_CURRENT_BINARY_DIR}/snap_accessors.c
+    ${CMAKE_CURRENT_BINARY_DIR}/tape_accessors.c
+    ${CMAKE_CURRENT_BINARY_DIR}/tape_set.c
     ${LIBSPECTRUM_MYGLIB_SOURCES}
     buffer.c
     bzip2.c
@@ -246,7 +296,7 @@ if(HAVE_ZLIB_H)
     target_sources(spectrum PRIVATE zip.c zlib.c)
 endif()
 
-if(WAV_SUPPORT)
+if(HAVE_WAV_BACKEND)
     target_sources(spectrum PRIVATE wav.c wav_internals.h)
     if (APPLE)
         target_sources(spectrum PRIVATE wav_macos.c)
@@ -262,14 +312,8 @@ if(WIN32)
     endif()
 endif()
 
-include(GenerateExportHeader)
-generate_export_header(spectrum
-        EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/export.h)
-
 set_target_properties(spectrum PROPERTIES
     VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
-    # libspectrum.h.in's LIBSPECTRUM_API dllexport/dllimport switch checks
-    # LIBSPECTRUM_EXPORTS specifically, not CMake's default per-target
-    # <name>_EXPORTS macro.
-    DEFINE_SYMBOL LIBSPECTRUM_EXPORTS)
+    SOVERSION ${PROJECT_VERSION_MAJOR})
+
+target_compile_definitions(spectrum PRIVATE LIBSPECTRUM_EXPORTS)

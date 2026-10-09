@@ -38,8 +38,7 @@ static constexpr struct {
 int
 internal_pzx_archive_id( const char *name )
 {
-  size_t i;
-  for( i = 0; i < ARRAY_SIZE( archive_info ); i++ )
+  for( size_t i = 0; i < ARRAY_SIZE( archive_info ); ++i )
     if( !strcmp( name, archive_info[i].name ) ) return archive_info[i].id;
   return -1;
 }
@@ -47,8 +46,7 @@ internal_pzx_archive_id( const char *name )
 const char *
 internal_pzx_archive_name( int id )
 {
-  size_t i;
-  for( i = 0; i < ARRAY_SIZE( archive_info ); i++ )
+  for( size_t i = 0; i < ARRAY_SIZE( archive_info ); ++i )
     if( id == archive_info[i].id ) return archive_info[i].name;
   return nullptr;
 }

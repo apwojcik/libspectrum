@@ -19,16 +19,17 @@ project(libspectrum VERSION 1.8.0 LANGUAGES C)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # configure.ac requires a C11-or-later compiler project-wide (checked via
-# AC_COMPILE_IFELSE).
-set(CMAKE_C_STANDARD 11)
+# AC_COMPILE_IFELSE); the CMake build targets C23.
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# CMake's compiler-standard machinery doesn't reliably map to /std:c11 for
-# every MSVC toolset version, and MSVC additionally gates <stdatomic.h>
-# behind /experimental:c11atomics even once /std:c11 is set.
-set(LIBSPECTRUM_C11_FLAGS "")
+# CMake's compiler-standard machinery doesn't map C_STANDARD 23 to a
+# recognised flag on every MSVC toolset (some only know /std:clatest, not
+# /std:c23), and MSVC additionally gates <stdatomic.h> behind
+# /experimental:c11atomics regardless of the C standard selected.
+set(LIBSPECTRUM_C23_FLAGS "")
 if(MSVC)
-    set(LIBSPECTRUM_C11_FLAGS /std:c11 /experimental:c11atomics)
+    set(LIBSPECTRUM_C23_FLAGS /std:clatest /experimental:c11atomics)
 endif()
 
 option(BUILD_SHARED_LIBS "Build libspectrum shared library" ON)
@@ -112,8 +113,8 @@ endif()
 set(LIBSPECTRUM_MYGLIB_SOURCES "")
 if(USE_FAKE_GLIB)
     include(CheckCSourceCompiles)
-    string(REPLACE ";" " " LIBSPECTRUM_C11_FLAGS_STR "${LIBSPECTRUM_C11_FLAGS}")
-    set(CMAKE_REQUIRED_FLAGS "${LIBSPECTRUM_C11_FLAGS_STR}")
+    string(REPLACE ";" " " LIBSPECTRUM_C23_FLAGS_STR "${LIBSPECTRUM_C23_FLAGS}")
+    set(CMAKE_REQUIRED_FLAGS "${LIBSPECTRUM_C23_FLAGS_STR}")
     check_c_source_compiles("
         #include <stdatomic.h>
         static atomic_flag lock = ATOMIC_FLAG_INIT;
@@ -232,8 +233,8 @@ target_include_directories(spectrum PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 # but myglib/ needs the root on the search path explicitly.
 target_include_directories(spectrum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-if(LIBSPECTRUM_C11_FLAGS)
-    target_compile_options(spectrum PRIVATE ${LIBSPECTRUM_C11_FLAGS})
+if(LIBSPECTRUM_C23_FLAGS)
+    target_compile_options(spectrum PRIVATE ${LIBSPECTRUM_C23_FLAGS})
 endif()
 
 if(HAVE_GCRYPT_H)

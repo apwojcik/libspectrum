@@ -83,8 +83,11 @@
   #define GNUC_PREREQ(maj, min) 0
 #endif
 
+/* C23 changed `!` to yield bool rather than int; cast back to int before
+   negating so MSVC doesn't flag the negation as an unsafe bool operation
+   (C4804). */
 #define BUILD_BUG_ON_ZERO(e) \
-  (sizeof(struct { int:-!!(e) * 1234; }))
+  (sizeof(struct { int:-(int)!!(e) * 1234; }))
 
 #if !GNUC_PREREQ(3, 1) || defined( __STRICT_ANSI__ )
   #define MUST_BE_ARRAY(a) \

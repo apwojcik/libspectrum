@@ -59,9 +59,12 @@ test_test_DEPENDENCIES = libspectrum.la \
 			 test/wav-mono-threshold.wav \
 			 test/wav-stereo-mixdown.wav
 
-noinst_DATA += test/complete-tzx.tzx \
-		test/wav-mono-threshold.wav \
-		test/wav-stereo-mixdown.wav
+# check_DATA, not noinst_DATA: these are Perl-generated test fixtures, not
+# library sources, so a plain `make` (library build only) shouldn't need
+# Perl on PATH - only `make check` (which builds and runs test/test) should.
+check_DATA = test/complete-tzx.tzx \
+	     test/wav-mono-threshold.wav \
+	     test/wav-stereo-mixdown.wav
 
 noinst_HEADERS += \
 	test/common.h \

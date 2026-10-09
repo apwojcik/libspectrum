@@ -276,7 +276,9 @@ if(APPLE)
             TYPE STRING FORCE VALUE "arm64")
 endif()
 
-target_include_directories(spectrum PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(spectrum PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 # myglib/*.c quote-include "internals.h" etc. from the project root; files
 # living at the root resolve that via the including file's own directory,
 # but myglib/ needs the root on the search path explicitly.
@@ -325,11 +327,41 @@ target_compile_definitions(spectrum PRIVATE LIBSPECTRUM_EXPORTS)
 # template autotools uses.
 
 install(TARGETS spectrum
+    EXPORT libspectrumTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 install(FILES ${LIBSPECTRUM_H} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+# CMake package configuration, so consumers can do
+# find_package(libspectrum) and link against libspectrum::spectrum
+# instead of going through pkg-config.
+add_library(libspectrum::spectrum ALIAS spectrum)
+
+include(CMakePackageConfigHelpers)
+
+set(LIBSPECTRUM_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/libspectrum)
+
+install(EXPORT libspectrumTargets
+    FILE libspectrumTargets.cmake
+    NAMESPACE libspectrum::
+    DESTINATION ${LIBSPECTRUM_CMAKE_INSTALL_DIR})
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/libspectrumConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/libspectrumConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/libspectrumConfig.cmake
+    INSTALL_DESTINATION ${LIBSPECTRUM_CMAKE_INSTALL_DIR})
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/libspectrumConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/libspectrumConfigVersion.cmake
+    DESTINATION ${LIBSPECTRUM_CMAKE_INSTALL_DIR})
 
 set(WAV_BACKEND_PRIVATE_LIBS "")
 if(HAVE_WAV_BACKEND)

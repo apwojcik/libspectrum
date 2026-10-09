@@ -42,13 +42,13 @@ BEGIN
     BEGIN
       VALUE "CompanyName",      "\0"
       VALUE "FileDescription",  "libspectrum\0"
-      VALUE "FileVersion",      VERSION##"\0"
+      VALUE "FileVersion",      VERSION "\0"
       VALUE "InternalName",     "libspectrum\0"
-      VALUE "LegalCopyright",   LIBSPECTRUM_COPYRIGHT##"; see the file 'AUTHORS' for more details.\0"
+      VALUE "LegalCopyright",   LIBSPECTRUM_COPYRIGHT "; see the file 'AUTHORS' for more details.\0"
       VALUE "License",          "libspectrum is licensed under the GNU General Public License\0"
       VALUE "OriginalFilename", "libspectrum.dll\0"
       VALUE "ProductName",      "libspectrum - emulator support library\0"
-      VALUE "ProductVersion",   VERSION##"\0"
+      VALUE "ProductVersion",   VERSION "\0"
     END
  END
 

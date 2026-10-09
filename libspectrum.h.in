@@ -72,6 +72,19 @@ extern "C" {
 #define DEPRECATED
 #endif                          /* #ifdef __GNUC__ */
 
+/* Give the public enums a fixed underlying type where the compiler
+   reading this header actually supports C23's "enum NAME : type"
+   syntax. This is decided by whichever compiler is processing this
+   header right now (libspectrum's own build or any downstream
+   consumer's), not by how libspectrum itself was built, since the
+   installed header carries no record of that. MSVC doesn't implement
+   this syntax yet even when it otherwise claims C23 support. */
+#if defined(_MSC_VER) && !defined(__clang__)
+#define LIBSPECTRUM_ENUM_INT
+#else
+#define LIBSPECTRUM_ENUM_INT : int
+#endif
+
 LIBSPECTRUM_INCLUDE_GCRYPT
 
 /* Standard typedefs */
@@ -87,7 +100,7 @@ LIBSPECTRUM_GLIB_REPLACEMENT
 /* Error handling */
 
 /* The various errors which can occur */
-typedef enum libspectrum_error {
+typedef enum libspectrum_error LIBSPECTRUM_ENUM_INT {
 
   LIBSPECTRUM_ERROR_NONE = 0,
 
@@ -169,7 +182,7 @@ LIBSPECTRUM_API void libspectrum_mem_set_vtable( libspectrum_mem_vtable_t *table
 /* Attempt to identify a given file */
 
 /* Various types of file we might manage to identify */
-typedef enum libspectrum_id_t {
+typedef enum libspectrum_id_t LIBSPECTRUM_ENUM_INT {
 
   /* These types present in all versions of libspectrum */
 
@@ -267,7 +280,7 @@ typedef enum libspectrum_id_t {
 } libspectrum_id_t;
 
 /* And 'classes' of file */
-typedef enum libspectrum_class_t {
+typedef enum libspectrum_class_t LIBSPECTRUM_ENUM_INT {
 
   LIBSPECTRUM_CLASS_UNKNOWN,
 
@@ -379,7 +392,7 @@ libspectrum_identify_class( libspectrum_class_t *libspectrum_class,
 
 /* A loaded file whose name, data and identification all describe the same
    (recursively uncompressed) layer. */
-typedef enum libspectrum_file_storage {
+typedef enum libspectrum_file_storage LIBSPECTRUM_ENUM_INT {
   LIBSPECTRUM_FILE_STORAGE_NONE,
   LIBSPECTRUM_FILE_STORAGE_PATH,
   LIBSPECTRUM_FILE_STORAGE_BUFFER
@@ -428,7 +441,7 @@ libspectrum_file_get_storage( const libspectrum_file *file );
 /* Different Spectrum variants and their capabilities */
 
 /* The machine types we can handle */
-typedef enum libspectrum_machine {
+typedef enum libspectrum_machine LIBSPECTRUM_ENUM_INT {
 
   LIBSPECTRUM_MACHINE_48,
   LIBSPECTRUM_MACHINE_TC2048,
@@ -611,7 +624,7 @@ extern LIBSPECTRUM_API const int LIBSPECTRUM_FLAG_SNAPSHOT_MINOR_INFO_LOSS;
 extern LIBSPECTRUM_API const int LIBSPECTRUM_FLAG_SNAPSHOT_MAJOR_INFO_LOSS;
 
 /* The joystick types we can handle */
-typedef enum libspectrum_joystick {
+typedef enum libspectrum_joystick LIBSPECTRUM_ENUM_INT {
 
   LIBSPECTRUM_JOYSTICK_NONE,
 
@@ -640,7 +653,7 @@ LIBSPECTRUM_SNAP_ACCESSORS
  */
 
 /* The various types of block available */
-typedef enum libspectrum_tape_type {
+typedef enum libspectrum_tape_type LIBSPECTRUM_ENUM_INT {
 
   /* Values must be the same as used in the .tzx format */
 
@@ -704,7 +717,7 @@ extern LIBSPECTRUM_API const int LIBSPECTRUM_TAPE_FLAGS_LENGTH_LONG; /* Long edg
 extern LIBSPECTRUM_API const int LIBSPECTRUM_TAPE_FLAGS_TAPE;	/* Tape has finished */
 
 /* The states which a block can be in */
-typedef enum libspectrum_tape_state_type {
+typedef enum libspectrum_tape_state_type LIBSPECTRUM_ENUM_INT {
 
   LIBSPECTRUM_TAPE_STATE_INVALID = 0,
 
@@ -767,12 +780,12 @@ libspectrum_tape_write( libspectrum_byte **buffer, size_t *length,
 /* Does this tape structure actually contain a tape? */
 LIBSPECTRUM_API int libspectrum_tape_present( const libspectrum_tape *tape );
 
-typedef enum libspectrum_tape_signal_level {
+typedef enum libspectrum_tape_signal_level LIBSPECTRUM_ENUM_INT {
   LIBSPECTRUM_TAPE_SIGNAL_LOW = 0,
   LIBSPECTRUM_TAPE_SIGNAL_HIGH = 1
 } libspectrum_tape_signal_level;
 
-typedef enum libspectrum_tape_transition {
+typedef enum libspectrum_tape_transition LIBSPECTRUM_ENUM_INT {
   LIBSPECTRUM_TAPE_TRANSITION_NONE = 0,
   LIBSPECTRUM_TAPE_TRANSITION_TOGGLE,
   LIBSPECTRUM_TAPE_TRANSITION_FORCE_LOW,
@@ -883,7 +896,7 @@ libspectrum_tape_iterator_peek_next( libspectrum_tape_iterator iterator );
 /*** Routines for handling the TZX generalised data block symbol table
      structure ***/
 
-typedef enum libspectrum_tape_generalised_data_symbol_edge_type {
+typedef enum libspectrum_tape_generalised_data_symbol_edge_type LIBSPECTRUM_ENUM_INT {
 
   LIBSPECTRUM_TAPE_GENERALISED_DATA_SYMBOL_EDGE = 0x00,
   LIBSPECTRUM_TAPE_GENERALISED_DATA_SYMBOL_NO_EDGE,
@@ -993,7 +1006,7 @@ libspectrum_rzx_write( libspectrum_byte **buffer, size_t *length,
 typedef struct _GSList *libspectrum_rzx_iterator;
 
 /* The block types which can appear in RZX files */
-typedef enum libspectrum_rzx_block_id {
+typedef enum libspectrum_rzx_block_id LIBSPECTRUM_ENUM_INT {
 
   LIBSPECTRUM_RZX_CREATOR_BLOCK = 0x10,
 
@@ -1139,14 +1152,14 @@ libspectrum_microdrive_mdr_write( const libspectrum_microdrive *microdrive,
  */
 
 /* The types of memory which this bank will page into */
-typedef enum libspectrum_dck_bank {
+typedef enum libspectrum_dck_bank LIBSPECTRUM_ENUM_INT {
   LIBSPECTRUM_DCK_BANK_DOCK = 0,
   LIBSPECTRUM_DCK_BANK_EXROM = 254,
   LIBSPECTRUM_DCK_BANK_HOME = 255
 } libspectrum_dck_bank;
 
 /* The type of one 8Kb page */
-typedef enum libspectrum_dck_page_type {
+typedef enum libspectrum_dck_page_type LIBSPECTRUM_ENUM_INT {
   LIBSPECTRUM_DCK_PAGE_NULL = 0,
   LIBSPECTRUM_DCK_PAGE_RAM_EMPTY,
   LIBSPECTRUM_DCK_PAGE_ROM,
@@ -1194,7 +1207,7 @@ libspectrum_signature_free( libspectrum_signature *signature );
  * IDE hard disk handling routines
  */
 
-typedef enum libspectrum_ide_databus {
+typedef enum libspectrum_ide_databus LIBSPECTRUM_ENUM_INT {
 
   LIBSPECTRUM_IDE_DATA8,
   LIBSPECTRUM_IDE_DATA16,
@@ -1203,14 +1216,14 @@ typedef enum libspectrum_ide_databus {
 
 } libspectrum_ide_databus;
 
-typedef enum libspectrum_ide_unit {
+typedef enum libspectrum_ide_unit LIBSPECTRUM_ENUM_INT {
 
   LIBSPECTRUM_IDE_MASTER = 0,
   LIBSPECTRUM_IDE_SLAVE = 1,
 
 } libspectrum_ide_unit;
 
-typedef enum libspectrum_ide_register {
+typedef enum libspectrum_ide_register LIBSPECTRUM_ENUM_INT {
 
   LIBSPECTRUM_IDE_REGISTER_DATA = 0,
   LIBSPECTRUM_IDE_REGISTER_ERROR_FEATURE = 1,

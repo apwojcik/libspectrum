@@ -59,53 +59,53 @@ typedef enum szx_machine_type {
 
 } szx_machine_type;
 
-static const char * const signature = "ZXST";
-static const size_t signature_length = 4;
+static constexpr const char *signature = "ZXST";
+static constexpr size_t signature_length = 4;
 
-static const libspectrum_byte ZXSTMF_ALTERNATETIMINGS = 1;
+static constexpr libspectrum_byte ZXSTMF_ALTERNATETIMINGS = 1;
 
-static const char * const libspectrum_string = "libspectrum: ";
+static constexpr const char *libspectrum_string = "libspectrum: ";
 
-static const libspectrum_byte SZX_VERSION_MAJOR = 1;
-static const libspectrum_byte SZX_VERSION_MINOR = 5;
+static constexpr libspectrum_byte SZX_VERSION_MAJOR = 1;
+static constexpr libspectrum_byte SZX_VERSION_MINOR = 5;
 
 /* Constants etc for each chunk type */
 
 #define ZXSTBID_CREATOR "CRTR"
 
 #define ZXSTBID_Z80REGS "Z80R"
-static const libspectrum_byte ZXSTZF_EILAST = 1;
-static const libspectrum_byte ZXSTZF_HALTED = 2;
-static const libspectrum_byte ZXSTZF_FSET = 4;
+static constexpr libspectrum_byte ZXSTZF_EILAST = 1;
+static constexpr libspectrum_byte ZXSTZF_HALTED = 2;
+static constexpr libspectrum_byte ZXSTZF_FSET = 4;
 
 #define ZXSTBID_SPECREGS "SPCR"
 
 #define ZXSTBID_RAMPAGE "RAMP"
-static const libspectrum_word ZXSTRF_COMPRESSED = 1;
+static constexpr libspectrum_word ZXSTRF_COMPRESSED = 1;
 
 #define ZXSTBID_AY "AY\0\0"
-static const libspectrum_byte ZXSTAYF_FULLERBOX = 1;
-static const libspectrum_byte ZXSTAYF_128AY = 2;
+static constexpr libspectrum_byte ZXSTAYF_FULLERBOX = 1;
+static constexpr libspectrum_byte ZXSTAYF_128AY = 2;
 
 #define ZXSTBID_MULTIFACE "MFCE"
-static const libspectrum_byte ZXSTMF_PAGEDIN = 1;
-static const libspectrum_byte ZXSTMF_COMPRESSED = 2;
-static const libspectrum_byte ZXSTMF_SOFTWARELOCKOUT = 4;
-static const libspectrum_byte ZXSTMF_REDBUTTONDISABLED = 8;
-static const libspectrum_byte ZXSTMF_DISABLED = 16;
-static const libspectrum_byte ZXSTMF_16KRAMMODE = 32;
-static const libspectrum_byte ZXSTMFM_1 = 0;
-static const libspectrum_byte ZXSTMFM_128 = 1;
+static constexpr libspectrum_byte ZXSTMF_PAGEDIN = 1;
+static constexpr libspectrum_byte ZXSTMF_COMPRESSED = 2;
+static constexpr libspectrum_byte ZXSTMF_SOFTWARELOCKOUT = 4;
+static constexpr libspectrum_byte ZXSTMF_REDBUTTONDISABLED = 8;
+static constexpr libspectrum_byte ZXSTMF_DISABLED = 16;
+static constexpr libspectrum_byte ZXSTMF_16KRAMMODE = 32;
+static constexpr libspectrum_byte ZXSTMFM_1 = 0;
+static constexpr libspectrum_byte ZXSTMFM_128 = 1;
 
 #define ZXSTBID_USPEECH "USPE"
 #define ZXSTBID_SPECDRUM "DRUM"
 #define ZXSTBID_ZXTAPE "TAPE"
 
 #define ZXSTBID_KEYBOARD "KEYB"
-static const libspectrum_dword ZXSTKF_ISSUE2 = 1;
+static constexpr libspectrum_dword ZXSTKF_ISSUE2 = 1;
 
 #define ZXSTBID_JOYSTICK "JOY\0"
-static const libspectrum_dword ZXSTJOYF_ALWAYSPORT31 = 1;
+static constexpr libspectrum_dword ZXSTJOYF_ALWAYSPORT31 = 1;
 
 typedef enum szx_joystick_type {
 
@@ -135,12 +135,12 @@ typedef enum szx_mouse_type {
 #define ZXSTBID_ROM "ROM\0"
 
 #define ZXSTBID_ZXPRINTER "ZXPR"
-static const libspectrum_word ZXSTPRF_ENABLED = 1;
+static constexpr libspectrum_word ZXSTPRF_ENABLED = 1;
 
 #define ZXSTBID_IF1 "IF1\0"
-static const libspectrum_word ZXSTIF1F_ENABLED = 1;
-static const libspectrum_word ZXSTIF1F_COMPRESSED = 2;
-static const libspectrum_word ZXSTIF1F_PAGED = 4;
+static constexpr libspectrum_word ZXSTIF1F_ENABLED = 1;
+static constexpr libspectrum_word ZXSTIF1F_COMPRESSED = 2;
+static constexpr libspectrum_word ZXSTIF1F_PAGED = 4;
 
 #define ZXSTBID_MICRODRIVE "MDRV"
 #define ZXSTBID_PLUS3DISK "+3\0\0"
@@ -154,12 +154,12 @@ static const libspectrum_word ZXSTIF1F_PAGED = 4;
 #define ZXSTBID_TIMEXREGS "SCLD"
 
 #define ZXSTBID_BETA128 "B128"
-static const libspectrum_dword ZXSTBETAF_CONNECTED = 1;
-static const libspectrum_dword ZXSTBETAF_CUSTOMROM = 2;
-static const libspectrum_dword ZXSTBETAF_PAGED = 4;
-static const libspectrum_dword ZXSTBETAF_AUTOBOOT = 8;
-static const libspectrum_dword ZXSTBETAF_SEEKLOWER = 16;
-static const libspectrum_dword ZXSTBETAF_COMPRESSED = 32;
+static constexpr libspectrum_dword ZXSTBETAF_CONNECTED = 1;
+static constexpr libspectrum_dword ZXSTBETAF_CUSTOMROM = 2;
+static constexpr libspectrum_dword ZXSTBETAF_PAGED = 4;
+static constexpr libspectrum_dword ZXSTBETAF_AUTOBOOT = 8;
+static constexpr libspectrum_dword ZXSTBETAF_SEEKLOWER = 16;
+static constexpr libspectrum_dword ZXSTBETAF_COMPRESSED = 32;
 
 #define ZXSTBID_BETADISK "BDSK"
 #define ZXSTBID_GS "GS\0\0"
@@ -167,35 +167,35 @@ static const libspectrum_dword ZXSTBETAF_COMPRESSED = 32;
 #define ZXSTBID_COVOX "COVX"
 
 #define ZXSTBID_DOCK "DOCK"
-static const libspectrum_word ZXSTDOCKF_RAM = 2;
-static const libspectrum_word ZXSTDOCKF_EXROMDOCK = 4;
+static constexpr libspectrum_word ZXSTDOCKF_RAM = 2;
+static constexpr libspectrum_word ZXSTDOCKF_EXROMDOCK = 4;
 
 #define ZXSTBID_ZXATASP "ZXAT"
-static const libspectrum_word ZXSTZXATF_UPLOAD = 1;
-static const libspectrum_word ZXSTZXATF_WRITEPROTECT = 2;
+static constexpr libspectrum_word ZXSTZXATF_UPLOAD = 1;
+static constexpr libspectrum_word ZXSTZXATF_WRITEPROTECT = 2;
 
 #define ZXSTBID_ZXATASPRAMPAGE "ATRP"
 
 #define ZXSTBID_ZXCF "ZXCF"
-static const libspectrum_word ZXSTZXCFF_UPLOAD = 1;
+static constexpr libspectrum_word ZXSTZXCFF_UPLOAD = 1;
 
 #define ZXSTBID_ZXCFRAMPAGE "CFRP"
 
 #define ZXSTBID_PLUSD "PLSD"
-static const libspectrum_dword ZXSTPLUSDF_PAGED = 1;
-static const libspectrum_dword ZXSTPLUSDF_COMPRESSED = 2;
-static const libspectrum_dword ZXSTPLUSDF_SEEKLOWER = 4;
-static const libspectrum_byte ZXSTPDRT_GDOS = 0;
+static constexpr libspectrum_dword ZXSTPLUSDF_PAGED = 1;
+static constexpr libspectrum_dword ZXSTPLUSDF_COMPRESSED = 2;
+static constexpr libspectrum_dword ZXSTPLUSDF_SEEKLOWER = 4;
+static constexpr libspectrum_byte ZXSTPDRT_GDOS = 0;
 /* static const libspectrum_byte ZXSTPDRT_UNIDOS = 1; */
-static const libspectrum_byte ZXSTPDRT_CUSTOM = 2;
+static constexpr libspectrum_byte ZXSTPDRT_CUSTOM = 2;
 
 #define ZXSTBID_PLUSDDISK "PDSK"
 
 #define ZXSTBID_OPUS "OPUS"
-static const libspectrum_dword ZXSTOPUSF_PAGED = 1;
-static const libspectrum_dword ZXSTOPUSF_COMPRESSED = 2;
-static const libspectrum_dword ZXSTOPUSF_SEEKLOWER = 4;
-static const libspectrum_dword ZXSTOPUSF_CUSTOMROM = 8;
+static constexpr libspectrum_dword ZXSTOPUSF_PAGED = 1;
+static constexpr libspectrum_dword ZXSTOPUSF_COMPRESSED = 2;
+static constexpr libspectrum_dword ZXSTOPUSF_SEEKLOWER = 4;
+static constexpr libspectrum_dword ZXSTOPUSF_CUSTOMROM = 8;
 
 #define ZXSTBID_OPUSDISK "ODSK"
 
@@ -203,37 +203,37 @@ static const libspectrum_dword ZXSTOPUSF_CUSTOMROM = 8;
 /* static const libspectrum_word ZXSTSIDE_ENABLED = 1; */
 
 #define ZXSTBID_DIVIDE "DIDE"
-static const libspectrum_word ZXSTDIVIDE_EPROM_WRITEPROTECT = 1;
-static const libspectrum_word ZXSTDIVIDE_PAGED = 2;
-static const libspectrum_word ZXSTDIVIDE_COMPRESSED = 4;
+static constexpr libspectrum_word ZXSTDIVIDE_EPROM_WRITEPROTECT = 1;
+static constexpr libspectrum_word ZXSTDIVIDE_PAGED = 2;
+static constexpr libspectrum_word ZXSTDIVIDE_COMPRESSED = 4;
 
 #define ZXSTBID_DIVIDERAMPAGE "DIRP"
 
 #define ZXSTBID_DIVMMC "DMMC"
-static const libspectrum_word ZXSTDIVMMC_EPROM_WRITEPROTECT = 1;
-static const libspectrum_word ZXSTDIVMMC_PAGED = 2;
-static const libspectrum_word ZXSTDIVMMC_COMPRESSED = 4;
+static constexpr libspectrum_word ZXSTDIVMMC_EPROM_WRITEPROTECT = 1;
+static constexpr libspectrum_word ZXSTDIVMMC_PAGED = 2;
+static constexpr libspectrum_word ZXSTDIVMMC_COMPRESSED = 4;
 
 #define ZXSTBID_DIVMMCRAMPAGE "DMRP"
 
 #define ZXSTBID_SPECTRANET "SNET"
-static const libspectrum_word ZXSTSNET_PAGED = 1;
-static const libspectrum_word ZXSTSNET_PAGED_VIA_IO = 2;
-static const libspectrum_word ZXSTSNET_PROGRAMMABLE_TRAP_ACTIVE = 4;
-static const libspectrum_word ZXSTSNET_PROGRAMMABLE_TRAP_MSB = 8;
-static const libspectrum_word ZXSTSNET_ALL_DISABLED = 16;
-static const libspectrum_word ZXSTSNET_RST8_DISABLED = 32;
-static const libspectrum_word ZXSTSNET_DENY_DOWNSTREAM_A15 = 64;
-static const libspectrum_word ZXSTSNET_NMI_FLIPFLOP = 128;
+static constexpr libspectrum_word ZXSTSNET_PAGED = 1;
+static constexpr libspectrum_word ZXSTSNET_PAGED_VIA_IO = 2;
+static constexpr libspectrum_word ZXSTSNET_PROGRAMMABLE_TRAP_ACTIVE = 4;
+static constexpr libspectrum_word ZXSTSNET_PROGRAMMABLE_TRAP_MSB = 8;
+static constexpr libspectrum_word ZXSTSNET_ALL_DISABLED = 16;
+static constexpr libspectrum_word ZXSTSNET_RST8_DISABLED = 32;
+static constexpr libspectrum_word ZXSTSNET_DENY_DOWNSTREAM_A15 = 64;
+static constexpr libspectrum_word ZXSTSNET_NMI_FLIPFLOP = 128;
 
 #define ZXSTBID_SPECTRANETFLASHPAGE "SNEF"
-static const libspectrum_byte ZXSTSNEF_FLASH_COMPRESSED = 1;
+static constexpr libspectrum_byte ZXSTSNEF_FLASH_COMPRESSED = 1;
 
 #define ZXSTBID_SPECTRANETRAMPAGE "SNER"
-static const libspectrum_byte ZXSTSNER_RAM_COMPRESSED = 1;
+static constexpr libspectrum_byte ZXSTSNER_RAM_COMPRESSED = 1;
 
 #define ZXSTBID_PALETTE "PLTT"
-static const libspectrum_byte ZXSTPALETTE_ENABLED = 1;
+static constexpr libspectrum_byte ZXSTPALETTE_ENABLED = 1;
 
 #define ZXSTBID_ZXMMC "ZMMC"
 
@@ -3613,7 +3613,7 @@ write_if1_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data,
 
   /* Skip 'reserved' data */
   {
-    static const libspectrum_byte zeros[32] = { 0 };
+    static constexpr libspectrum_byte zeros[32] = { 0 };
     libspectrum_buffer_write( data, zeros, 3 );
 
     /* Skip 'reserved' data */

@@ -343,7 +343,7 @@ write_file( libspectrum_buffer *out, csw_writer *writer, libspectrum_dword rate 
   libspectrum_buffer_write_byte( out, compression );
   libspectrum_buffer_write_byte( out, writer->initial_high );
   libspectrum_buffer_write_byte( out, 0 );
-  static const libspectrum_byte application[16] = { 0 };
+  static constexpr libspectrum_byte application[16] = { 0 };
   libspectrum_buffer_write( out, application, sizeof( application ) );
   libspectrum_buffer_write_buffer( out, writer->body );
   return LIBSPECTRUM_ERROR_NONE;

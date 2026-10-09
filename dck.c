@@ -30,7 +30,7 @@
 
 #include "internals.h"
 
-static const int DCK_PAGE_SIZE = 0x2000;
+static constexpr int DCK_PAGE_SIZE = 0x2000;
 
 /* Initialise a libspectrum_dck_block structure */
 static void

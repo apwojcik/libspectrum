@@ -45,63 +45,63 @@ typedef struct timings_frame_t {
   libspectrum_dword top_left_pixel;
 } timings_frame_t;
 
-static const timings_frame_t timings_frame_ferranti_5c_6c =
+static constexpr timings_frame_t timings_frame_ferranti_5c_6c =
 {
   24, 128, 24, 48, /* Horizontal, 224 clocks per line */
   48, 192, 48, 24, /* Vertical, 312 lines per frame */
   32, 14336
 };
 
-static const timings_frame_t timings_frame_ferranti_60hz =
+static constexpr timings_frame_t timings_frame_ferranti_60hz =
 {
   24, 128, 24, 48, /* Horizontal, 224 clocks per line */
   24, 192, 25, 23, /* Vertical, 264 lines per frame */
   32, 8960
 };
 
-static const timings_frame_t timings_frame_ferranti_7c =
+static constexpr timings_frame_t timings_frame_ferranti_7c =
 {
   24, 128, 24, 52, /* Horizontal, 228 clocks per line */
   48, 192, 48, 23, /* Vertical, 311 lines per frame */
   36, 14362
 };
 
-static const timings_frame_t timings_frame_amstrad_asic =
+static constexpr timings_frame_t timings_frame_amstrad_asic =
 {
   24, 128, 24, 52, /* Horizontal, 228 clocks per line */
   48, 192, 48, 23, /* Vertical, 311 lines per frame */
   32, 14365
 };
 
-static const timings_frame_t timings_frame_timex_scld_50hz =
+static constexpr timings_frame_t timings_frame_timex_scld_50hz =
 {
   24, 128, 24, 48, /* Horizontal, 224 clocks per line */
   48, 192, 48, 24, /* Vertical, 312 lines per frame */
   32, 14321
 };
 
-static const timings_frame_t timings_frame_timex_scld_60hz =
+static constexpr timings_frame_t timings_frame_timex_scld_60hz =
 {
   24, 128, 24, 48, /* Horizontal, 224 clocks per line */
   24, 192, 25, 21, /* Vertical, 262 lines per frame */
   32, 9169
 };
 
-static const timings_frame_t timings_frame_se =
+static constexpr timings_frame_t timings_frame_se =
 {
   24, 128, 24, 48, /* Horizontal, 224 clocks per line */
   47, 192, 48, 25, /* Vertical, 312 lines per frame */
   32, 14336
 };
 
-static const timings_frame_t timings_frame_pentagon =
+static constexpr timings_frame_t timings_frame_pentagon =
 {
   36, 128, 28, 32, /* Horizontal, 224 clocks per line */
   64, 192, 48, 16, /* Vertical 320 lines per frame */
   36, 17988
 };
 
-static const timings_frame_t timings_frame_scorpion =
+static constexpr timings_frame_t timings_frame_scorpion =
 {
   24, 128, 32, 40, /* Horizontal, 224 clocks per line */
   48, 192, 48, 24, /* Vertical, 312 lines per frame */
@@ -122,7 +122,7 @@ typedef struct timings_t {
 } timings_t;
 
 /* The actual data from which the full timings are constructed */
-static const timings_t base_timings[] = {
+static constexpr timings_t base_timings[] = {
 
   /* 48K */
   { 3500000,       0, &timings_frame_ferranti_5c_6c },

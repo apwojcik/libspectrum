@@ -30,7 +30,7 @@
 #include "internals.h"
 
 /* Length of the basic .z80 headers */
-static const int LIBSPECTRUM_Z80_HEADER_LENGTH = 30;
+static constexpr int LIBSPECTRUM_Z80_HEADER_LENGTH = 30;
 
 /* Length of the v2 extensions */
 #define LIBSPECTRUM_Z80_V2_LENGTH 23
@@ -93,26 +93,26 @@ enum {
 
 /* Constants representing a Sinclair Interface 2 port 1 joystick as a .z80
    user defined joystick */
-static const libspectrum_word if2_left_map_l = 0x0f03;
-static const libspectrum_word if2_left_map_r = 0x0803;
-static const libspectrum_word if2_left_map_d = 0x0403;
-static const libspectrum_word if2_left_map_u = 0x0203;
-static const libspectrum_word if2_left_map_f = 0x0103;
-static const libspectrum_word if2_left_l     = '1';
-static const libspectrum_word if2_left_r     = '2';
-static const libspectrum_word if2_left_d     = '3';
-static const libspectrum_word if2_left_u     = '4';
-static const libspectrum_word if2_left_f     = '5';
+static constexpr libspectrum_word if2_left_map_l = 0x0f03;
+static constexpr libspectrum_word if2_left_map_r = 0x0803;
+static constexpr libspectrum_word if2_left_map_d = 0x0403;
+static constexpr libspectrum_word if2_left_map_u = 0x0203;
+static constexpr libspectrum_word if2_left_map_f = 0x0103;
+static constexpr libspectrum_word if2_left_l     = '1';
+static constexpr libspectrum_word if2_left_r     = '2';
+static constexpr libspectrum_word if2_left_d     = '3';
+static constexpr libspectrum_word if2_left_u     = '4';
+static constexpr libspectrum_word if2_left_f     = '5';
 
 /* The signature used to designate the .slt extensions */
 static libspectrum_byte slt_signature[] = "\0\0\0SLT";
 static size_t slt_signature_length = 6;
 
 /* Bits used in extended header to flag that a Fuller Box is in use */
-static const libspectrum_byte fuller_box_flags = 0x44;
+static constexpr libspectrum_byte fuller_box_flags = 0x44;
 
 /* Bits used in extended header to flag that a Melodik is in use */
-static const libspectrum_byte melodik_flags = 0x04;
+static constexpr libspectrum_byte melodik_flags = 0x04;
 
 static libspectrum_error
 read_header( const libspectrum_byte *buffer, libspectrum_snap *snap,
@@ -1588,7 +1588,7 @@ write_extended_header( libspectrum_buffer *buffer, int *flags,
     libspectrum_buffer_write_word( buffer, if2_left_u );
     libspectrum_buffer_write_word( buffer, if2_left_f );
   } else {
-    static const libspectrum_byte zeros[20] = { 0 };
+    static constexpr libspectrum_byte zeros[20] = { 0 };
     libspectrum_buffer_write( buffer, zeros, sizeof( zeros ) );
   }
 
@@ -1598,7 +1598,7 @@ write_extended_header( libspectrum_buffer *buffer, int *flags,
     libspectrum_buffer_write_byte( buffer, 0x00 ); /* DISCiPLE inhibitor */
     libspectrum_buffer_write_byte( buffer, 0x00 ); /* DISCiPLE pageable */
   } else {
-    static const libspectrum_byte zeros[3] = { 0 };
+    static constexpr libspectrum_byte zeros[3] = { 0 };
     libspectrum_buffer_write( buffer, zeros, sizeof( zeros ) );
   }
 

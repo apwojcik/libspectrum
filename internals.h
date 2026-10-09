@@ -62,6 +62,15 @@
    alone). */
 #ifndef __cplusplus
 #define nullptr ((void *)0)
+
+/* This MSVC toolset doesn't implement the C23 constexpr keyword at all.
+   Fall back to const (weaker: no longer enforces a constant-expression
+   initializer), and silence the resulting "same type qualifier used more
+   than once" warning on constexpr-const-pointee declarations (e.g.
+   constexpr const char *x), which is an artifact of this textual
+   fallback and not a real redundancy on a real C23 compiler. */
+#define constexpr const
+#pragma warning(disable: 4114)
 #endif				/* #ifndef __cplusplus */
 #endif				/* #ifdef _MSC_VER */
 

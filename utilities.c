@@ -31,9 +31,9 @@
 
 #define TZX_HZ 3500000
 
-static const libspectrum_dword tstates_per_ms = TZX_HZ / 1000;
+static constexpr libspectrum_dword tstates_per_ms = TZX_HZ / 1000;
 
-static const char *spectrum_tokens[] = {
+static constexpr const char *spectrum_tokens[] = {
   "SPECTRUM",
   "PLAY",      "RND",       "INKEY$",    "PI",
   "FN",        "POINT",     "SCREEN$",   "ATTR",
@@ -60,7 +60,7 @@ static const char *spectrum_tokens[] = {
   "DRAW",      "CLEAR",     "RETURN",    "COPY"
 };
 
-static const char *graphics_tokens[] = {
+static constexpr const char *graphics_tokens[] = {
   " ", "▝", "▘", "▀", "▗", "▐", "▚", "▜",
   "▖", "▞", "▌", "▛", "▄", "▟", "▙", "█"
 };

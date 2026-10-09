@@ -173,7 +173,7 @@ rzx_write_signed_end( libspectrum_buffer *buffer, libspectrum_buffer *block_data
                       libspectrum_rzx_dsa_key *key );
 
 /* The signature used to identify .rzx files */
-static const char * const rzx_signature = "RZX!";
+static constexpr const char *rzx_signature = "RZX!";
 
 /* The IN count used to signify 'repeat last frame' */
 const libspectrum_word libspectrum_rzx_repeat_frame = 0xffff;

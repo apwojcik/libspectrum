@@ -522,11 +522,11 @@ libspectrum_tape_block_zero( libspectrum_tape_block *block )
 {
   switch( block->type ) {
   case LIBSPECTRUM_TAPE_BLOCK_GENERALISED_DATA:
-    block->types.generalised_data.pilot_table.symbols = NULL;
-    block->types.generalised_data.data_table.symbols = NULL;
-    block->types.generalised_data.pilot_symbols = NULL;
-    block->types.generalised_data.pilot_repeats = NULL;
-    block->types.generalised_data.data = NULL;
+    block->types.generalised_data.pilot_table.symbols = nullptr;
+    block->types.generalised_data.data_table.symbols = nullptr;
+    block->types.generalised_data.pilot_symbols = nullptr;
+    block->types.generalised_data.pilot_repeats = nullptr;
+    block->types.generalised_data.data = nullptr;
     break;
   default:
     break;

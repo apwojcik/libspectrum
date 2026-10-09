@@ -66,7 +66,7 @@ void
 libspectrum_buffer_free( libspectrum_buffer *buffer )
 {
   libspectrum_free( buffer->buffer );
-  buffer->buffer = NULL;
+  buffer->buffer = nullptr;
   buffer->buffer_size = 0;
   buffer->bytes_used = 0;
   libspectrum_free( buffer );
@@ -161,7 +161,7 @@ libspectrum_buffer_get_data_size( const libspectrum_buffer *buffer )
 libspectrum_byte*
 libspectrum_buffer_get_data( const libspectrum_buffer *buffer )
 {
-  return buffer ? buffer->buffer : NULL;
+  return buffer ? buffer->buffer : nullptr;
 }
 
 void

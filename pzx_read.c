@@ -73,10 +73,10 @@ read_pzxt_block( libspectrum_tape *tape, const libspectrum_byte **buffer,
   size_t i = 0;
   size_t count = 0;
   int id;
-  int *ids = NULL;
-  char *info_tag = NULL;
+  int *ids = nullptr;
+  char *info_tag = nullptr;
   char *string;
-  char **strings = NULL;
+  char **strings = nullptr;
   const libspectrum_byte *block_end = *buffer + data_length;
 
   if( data_length < 2 ) {
@@ -105,7 +105,7 @@ read_pzxt_block( libspectrum_tape *tape, const libspectrum_byte **buffer,
     ids[0] = 0x00;
 
     /* Read in the title string itself */
-    strings[0] = NULL;
+    strings[0] = nullptr;
     error = pzx_read_string( buffer, block_end, &strings[0] );
     if( error ) {
       libspectrum_free( strings[0] );
@@ -588,7 +588,7 @@ pzx_read_data( const libspectrum_byte **ptr, const libspectrum_byte *end,
       memcpy( *data, *ptr, length ); *ptr += length;
     }
   } else {
-    *data = NULL;
+    *data = nullptr;
   }
 
   return LIBSPECTRUM_ERROR_NONE;

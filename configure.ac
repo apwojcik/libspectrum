@@ -69,16 +69,19 @@ AC_DEFINE([LIBSPECTRUM_COPYRIGHT], [libspectrum_copyright],
 
 dnl Checks for programs.
 AC_PROG_CC
-AC_MSG_CHECKING([whether $CC supports C11 or later])
+dnl Request C23 explicitly rather than relying on the compiler's default
+dnl dialect, which varies a lot by GCC/Clang version.
+CFLAGS="-std=gnu23 $CFLAGS"
+AC_MSG_CHECKING([whether $CC supports C23 (via -std=gnu23)])
 AC_COMPILE_IFELSE(
   [AC_LANG_SOURCE([[
-#if !defined __STDC_VERSION__ || __STDC_VERSION__ < 201112L
-#error "C11 or later is required"
+#if !defined __STDC_VERSION__ || __STDC_VERSION__ < 202311L
+#error "C23 or later is required"
 #endif
 int main(void) { return 0; }
   ]])],
   [AC_MSG_RESULT([yes])],
-  [AC_MSG_FAILURE([a compiler with support for C11 or later is required])]
+  [AC_MSG_FAILURE([a compiler with support for C23 (-std=gnu23) is required])]
 )
 
 LT_INIT

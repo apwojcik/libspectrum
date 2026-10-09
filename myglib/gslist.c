@@ -40,8 +40,8 @@ gint	last_function		(gconstpointer	 a,
 
 static int FREE_LIST_ALLOCATE_CHUNK = 1024;
 
-GSList * free_list = NULL;
-GSList * allocated_list = NULL;
+GSList * free_list = nullptr;
+GSList * allocated_list = nullptr;
 
 static atomic_flag atomic_locker = ATOMIC_FLAG_INIT;
 
@@ -57,7 +57,7 @@ void    allocate_free   ( void ) {
         allocated_list = free_list;
         for(i=0;i<FREE_LIST_ALLOCATE_CHUNK-1;i++)
             free_list[i].next=&free_list[i+1];
-        free_list[FREE_LIST_ALLOCATE_CHUNK-1].next=NULL;
+        free_list[FREE_LIST_ALLOCATE_CHUNK-1].next=nullptr;
     }
     unlock();
 }
@@ -83,14 +83,14 @@ GSList* g_slist_insert	(GSList		*list,
   free_list=free_list->next;
   unlock();
   new_list->data = data;
-  new_list->next=NULL;
+  new_list->next=nullptr;
 
   if (!list)
     {
       return new_list;
     }
 
-  prev_list = NULL;
+  prev_list = nullptr;
   tmp_list = list;
 
   while ((position-- > 0) && tmp_list)
@@ -118,7 +118,7 @@ GSList* g_slist_insert_sorted	(GSList		*list,
 				 GCompareFunc	 func) {
     
   GSList *tmp_list = list;
-  GSList *prev_list = NULL;
+  GSList *prev_list = nullptr;
   GSList *new_list;
   gint cmp;
 
@@ -133,7 +133,7 @@ GSList* g_slist_insert_sorted	(GSList		*list,
       free_list=free_list->next;
       unlock();
       new_list->data = data;
-      new_list->next=NULL;
+      new_list->next=nullptr;
       return new_list;
     }
 
@@ -155,7 +155,7 @@ GSList* g_slist_insert_sorted	(GSList		*list,
   if ((!tmp_list->next) && (cmp > 0))
     {
       tmp_list->next = new_list;
-      new_list->next=NULL;
+      new_list->next=nullptr;
       return list;
     }
 
@@ -204,7 +204,7 @@ GSList* g_slist_remove		(GSList		*list,
   GSList *tmp;
   GSList *prev;
 
-  prev = NULL;
+  prev = nullptr;
   tmp = list;
 
   while (tmp)
@@ -216,7 +216,7 @@ GSList* g_slist_remove		(GSList		*list,
           if (list == tmp)
             list = list->next;
 
-          tmp->next = NULL;
+          tmp->next = nullptr;
           g_slist_free (tmp);
 
           break;
@@ -235,7 +235,7 @@ GSList* g_slist_delete_link	(GSList		*list,
   GSList *tmp;
   GSList *prev;
 
-  prev = NULL;
+  prev = nullptr;
   tmp = list;
 
   while (tmp)
@@ -247,7 +247,7 @@ GSList* g_slist_delete_link	(GSList		*list,
           if (list == tmp)
             list = list->next;
 
-          tmp->next = NULL;
+          tmp->next = nullptr;
           g_slist_free (tmp);
           break;
         }
@@ -315,7 +315,7 @@ void	g_slist_free		(GSList		*list) {
 GSList*
 g_slist_reverse (GSList *list)
 {
-  GSList *prev = NULL;
+  GSList *prev = nullptr;
 
   while (list)
     {
@@ -333,7 +333,7 @@ g_slist_reverse (GSList *list)
 GSList* g_slist_nth		(GSList		*list,
 				 guint		n) {
   for( ; n; n-- ) {
-    if( list == NULL ) return NULL;
+    if( list == nullptr ) return nullptr;
     list = list->next;
   }
 
@@ -349,7 +349,7 @@ GSList* g_slist_find_custom	(GSList		*list,
       list = list->next;
     }
 
-  return NULL;
+  return nullptr;
 }
 
 gint	g_slist_position	(GSList		*list,
@@ -372,8 +372,8 @@ libspectrum_slist_cleanup( void )
 {
   lock();
   libspectrum_free( allocated_list );
-  allocated_list = NULL;
-  free_list = NULL;
+  allocated_list = nullptr;
+  free_list = nullptr;
   unlock();
 }
 

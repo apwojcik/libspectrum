@@ -378,7 +378,7 @@ static void
 write_chunk( libspectrum_buffer *buffer, const char *id,
              libspectrum_buffer *block_data );
 
-static int
+static bool
 compress_data( libspectrum_buffer *dest, const libspectrum_byte *src_data,
                size_t src_data_length, int compress );
 
@@ -508,7 +508,7 @@ read_b128_chunk( libspectrum_snap *snap, libspectrum_word version GCC_UNUSED,
 #ifdef HAVE_ZLIB_H
   libspectrum_error error;
 #endif
-  libspectrum_byte *rom_data = NULL;
+  libspectrum_byte *rom_data = nullptr;
   libspectrum_dword flags;
   const size_t expected_length = 0x4000;
 
@@ -674,7 +674,7 @@ read_opus_chunk( libspectrum_snap *snap, libspectrum_word version GCC_UNUSED,
 #ifdef HAVE_ZLIB_H
   libspectrum_error error;
 #endif
-  libspectrum_byte *ram_data = NULL, *rom_data = NULL;
+  libspectrum_byte *ram_data = nullptr, *rom_data = nullptr;
   libspectrum_dword flags;
   size_t disc_ram_length;
   size_t disc_rom_length;
@@ -872,7 +872,7 @@ read_plsd_chunk( libspectrum_snap *snap, libspectrum_word version GCC_UNUSED,
 #ifdef HAVE_ZLIB_H
   libspectrum_error error;
 #endif
-  libspectrum_byte *ram_data = NULL, *rom_data = NULL;
+  libspectrum_byte *ram_data = nullptr, *rom_data = nullptr;
   libspectrum_byte rom_type;
   libspectrum_dword flags;
   size_t disc_ram_length;
@@ -1554,7 +1554,7 @@ read_if1_chunk( libspectrum_snap *snap, libspectrum_word version GCC_UNUSED,
 {
   libspectrum_word flags;
   libspectrum_word expected_length;
-  libspectrum_byte *rom_data = NULL; 
+  libspectrum_byte *rom_data = nullptr; 
 
   if( data_length < 40 ) {
     libspectrum_print_error(
@@ -1705,7 +1705,7 @@ read_rom_chunk( libspectrum_snap *snap, libspectrum_word version GCC_UNUSED,
 {
   libspectrum_word flags;
   libspectrum_dword expected_length;
-  libspectrum_byte *rom_data = NULL; 
+  libspectrum_byte *rom_data = nullptr; 
   libspectrum_error retval = LIBSPECTRUM_ERROR_NONE;
 
   if( data_length < 6 ) {
@@ -1946,7 +1946,7 @@ read_divxxx_chunk( libspectrum_snap *snap, const libspectrum_byte **buffer,
   libspectrum_error error;
 #endif
   libspectrum_word flags;
-  libspectrum_byte *eprom_data = NULL;
+  libspectrum_byte *eprom_data = nullptr;
   const size_t expected_length = 0x2000;
 
   if( data_length < 4 ) {
@@ -2341,7 +2341,7 @@ read_mfce_chunk( libspectrum_snap *snap, libspectrum_word version GCC_UNUSED,
 #ifdef HAVE_ZLIB_H
   libspectrum_error error;
 #endif
-  libspectrum_byte *ram_data = NULL;
+  libspectrum_byte *ram_data = nullptr;
   libspectrum_byte multiface_model;
   libspectrum_byte flags;
   int capabilities;
@@ -3262,7 +3262,7 @@ write_rom_chunk( libspectrum_buffer *buffer, libspectrum_buffer *block_data,
   size_t i, data_length = 0;
   libspectrum_buffer *data, *rom_buffer;
   int flags = 0;
-  int use_compression;
+  bool use_compression;
 
   for( i = 0; i< libspectrum_snap_custom_rom_pages( snap ); i++ ) {
     data_length += libspectrum_snap_rom_length( snap, i );
@@ -3429,7 +3429,7 @@ write_ram_page( libspectrum_buffer *buffer, libspectrum_buffer *block_data,
                 size_t data_length, int page, int compress, int extra_flags )
 {
   libspectrum_buffer *data_buffer;
-  int use_compression;
+  bool use_compression;
 
   if( !data ) return;
 
@@ -3485,11 +3485,11 @@ static void
 write_b128_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data,
                   libspectrum_snap *snap, int compress )
 {
-  libspectrum_byte *rom_data = NULL;
-  libspectrum_buffer *rom_buffer = NULL;
+  libspectrum_byte *rom_data = nullptr;
+  libspectrum_buffer *rom_buffer = nullptr;
   libspectrum_word beta_rom_length = 0;
   libspectrum_dword flags;
-  int use_compression = 0;
+  bool use_compression = false;
 
   if( libspectrum_snap_beta_custom_rom( snap ) ) {
     rom_data = libspectrum_snap_beta_rom( snap, 0 );
@@ -3524,12 +3524,12 @@ write_b128_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data,
   if( rom_buffer ) libspectrum_buffer_free( rom_buffer );
 }
 
-static int
+static bool
 compress_data( libspectrum_buffer *dest, const libspectrum_byte *src_data,
                size_t src_data_length, int compress )
 {
-  libspectrum_byte *compressed_data = NULL;
-  int use_compression = 0;
+  libspectrum_byte *compressed_data = nullptr;
+  bool use_compression = false;
 
 #ifdef HAVE_ZLIB_H
 
@@ -3544,7 +3544,7 @@ compress_data( libspectrum_buffer *dest, const libspectrum_byte *src_data,
     if( error == LIBSPECTRUM_ERROR_NONE &&
         ( compress & LIBSPECTRUM_FLAG_SNAPSHOT_ALWAYS_COMPRESS ||
           compressed_length < src_data_length ) ) {
-      use_compression = 1;
+      use_compression = true;
       src_data = compressed_data;
       src_data_length = compressed_length;
     }
@@ -3564,11 +3564,11 @@ static libspectrum_error
 write_if1_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data,
 		 libspectrum_snap *snap, int compress  )
 {
-  libspectrum_byte *rom_data = NULL; 
+  libspectrum_byte *rom_data = nullptr; 
   libspectrum_buffer *rom_buffer;
   libspectrum_word uncompressed_rom_length = 0;
   libspectrum_word flags = 0;
-  int use_compression;
+  bool use_compression;
   libspectrum_byte drive_count = 8;
 
   if( libspectrum_snap_interface1_custom_rom( snap ) ) {
@@ -3583,7 +3583,7 @@ write_if1_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data,
       return LIBSPECTRUM_ERROR_LOGIC;
     }
     rom_data = libspectrum_snap_interface1_rom( snap, 0 );
-    if( rom_data == NULL ) {
+    if( rom_data == nullptr ) {
       libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
                               "Interface 1 custom ROM specified to be %lu "
                               "bytes but NULL pointer provided",
@@ -3645,7 +3645,7 @@ write_opus_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data,
   int rom_compression = 0, ram_compression = 0;
 
   rom_data = libspectrum_snap_opus_rom( snap, 0 );
-  if( rom_data == NULL ) {
+  if( rom_data == nullptr ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
                             "Opus ROM must be 8192 bytes but NULL pointer "
                             "provided" );
@@ -3722,7 +3722,7 @@ write_plsd_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data,
   int rom_compression = 0, ram_compression = 0;
 
   rom_data = libspectrum_snap_plusd_rom( snap, 0 );
-  if( rom_data == NULL ) {
+  if( rom_data == nullptr ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
                             "+D ROM must be 8192 bytes but NULL pointer "
                             "provided" );
@@ -3862,7 +3862,7 @@ write_if2r_chunk( libspectrum_buffer *buffer, libspectrum_buffer *block_data,
   size_t data_length, compressed_length;
 
   data = libspectrum_snap_interface2_rom( snap, 0 ); data_length = 0x4000;
-  compressed_data = NULL;
+  compressed_data = nullptr;
 
   error = libspectrum_zlib_compress( data, data_length,
                                      &compressed_data, &compressed_length );
@@ -3899,7 +3899,7 @@ static void
 write_side_chunk( libspectrum_buffer *buffer, libspectrum_buffer *block_data GCC_UNUSED,
 		  libspectrum_snap *snap GCC_UNUSED )
 {
-  write_chunk( buffer, ZXSTBID_SIMPLEIDE, NULL );
+  write_chunk( buffer, ZXSTBID_SIMPLEIDE, nullptr );
 }
 
 static void
@@ -3939,11 +3939,11 @@ write_divxxx_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data,
                     libspectrum_byte (*get_control)( libspectrum_snap* ),
                     size_t (*get_page_count)( libspectrum_snap* ) )
 {
-  libspectrum_byte *eprom_data = NULL;
+  libspectrum_byte *eprom_data = nullptr;
   libspectrum_buffer *eprom_buffer;
   libspectrum_word flags = 0;
   libspectrum_word uncompressed_eprom_length = 0;
-  int use_compression;
+  bool use_compression;
 
   eprom_data = get_eprom( snap, 0 );
   if( !eprom_data ) {
@@ -4137,7 +4137,7 @@ write_mfce_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data,
   size_t ram_length;
   libspectrum_byte flags = 0;
   libspectrum_byte model;
-  int use_compression = 0;
+  bool use_compression = false;
 
   ram_length = libspectrum_snap_multiface_ram_length( snap, 0 );
   if( ram_length != 0x2000 && ram_length != 0x4000 ) {
@@ -4150,7 +4150,7 @@ write_mfce_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data,
     return LIBSPECTRUM_ERROR_LOGIC;
   }
   ram_data = libspectrum_snap_multiface_ram( snap, 0 );
-  if( ram_data == NULL ) {
+  if( ram_data == nullptr ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
                             "Multiface RAM specified to be %lu "
                             "bytes but NULL pointer provided in snap",
@@ -4214,7 +4214,7 @@ static void
 write_zmmc_chunk( libspectrum_buffer *buffer, libspectrum_buffer *data GCC_UNUSED,
                   libspectrum_snap *snap GCC_UNUSED )
 {
-  write_chunk( buffer, ZXSTBID_ZXMMC, NULL );
+  write_chunk( buffer, ZXSTBID_ZXMMC, nullptr );
 }
 
 static void

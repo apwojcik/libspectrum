@@ -39,7 +39,7 @@
 #define PZX_STOP   "STOP"
 
 /* Title (TZX ID 0) is positional, not a key/value pair. Unknown names
-   return -1; unknown IDs return NULL. */
+   return -1; unknown IDs return nullptr. */
 int internal_pzx_archive_id( const char *name );
 const char *internal_pzx_archive_name( int id );
 

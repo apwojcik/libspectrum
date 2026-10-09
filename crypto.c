@@ -123,7 +123,7 @@ get_hash( gcry_sexp_t *hash, const libspectrum_byte *data, size_t data_length )
   gcry_md_hash_buffer( HASH_ALGORITHM, digest, data, data_length );
 
   error = gcry_mpi_scan( &hash_mpi, GCRYMPI_FMT_USG, digest, digest_length,
-			 NULL );
+			 nullptr );
   if( error ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
 			     "get_hash: error creating hash MPI: %s",
@@ -135,7 +135,7 @@ get_hash( gcry_sexp_t *hash, const libspectrum_byte *data, size_t data_length )
 
   libspectrum_free( digest );
 
-  error = gcry_sexp_build( hash, NULL, hash_format, hash_mpi );
+  error = gcry_sexp_build( hash, nullptr, hash_format, hash_mpi );
   if( error ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
 			     "get_hash: error creating hash sexp: %s",
@@ -159,22 +159,22 @@ create_key( gcry_sexp_t *s_key, libspectrum_rzx_dsa_key *key,
   gcry_mpi_t mpis[MPI_COUNT];
   const char *format;
 
-  for( i=0; i<MPI_COUNT; i++ ) mpis[i] = NULL;
+  for( i=0; i<MPI_COUNT; i++ ) mpis[i] = nullptr;
 
     error = gcry_mpi_scan( &mpis[0], GCRYMPI_FMT_HEX, (unsigned char*)key->p,
-			   0, NULL );
+			   0, nullptr );
   if( !error ) 
     error = gcry_mpi_scan( &mpis[1], GCRYMPI_FMT_HEX, (unsigned char*)key->q,
-			   0, NULL );
+			   0, nullptr );
   if( !error )
     error = gcry_mpi_scan( &mpis[2], GCRYMPI_FMT_HEX, (unsigned char*)key->g,
-			   0, NULL );
+			   0, nullptr );
   if( !error )
     error = gcry_mpi_scan( &mpis[3], GCRYMPI_FMT_HEX, (unsigned char*)key->y,
-			   0, NULL );
+			   0, nullptr );
   if( !error && secret_key )
     error = gcry_mpi_scan( &mpis[4], GCRYMPI_FMT_HEX, (unsigned char*)key->x,
-			   0, NULL );
+			   0, nullptr );
 
   if( error ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
@@ -186,7 +186,7 @@ create_key( gcry_sexp_t *s_key, libspectrum_rzx_dsa_key *key,
 
   format = secret_key ? private_key_format : public_key_format;
   
-  error = gcry_sexp_build( s_key, NULL, format,
+  error = gcry_sexp_build( s_key, nullptr, format,
 			   mpis[0], mpis[1], mpis[2], mpis[3], mpis[4] );
   if( error ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
@@ -250,7 +250,7 @@ serialise_mpis( libspectrum_byte **signature, size_t *signature_length,
   size_t length, length_s;
   unsigned char *ptr;
 
-  error = gcry_mpi_print( GCRYMPI_FMT_PGP, NULL, 0, &length, r );
+  error = gcry_mpi_print( GCRYMPI_FMT_PGP, nullptr, 0, &length, r );
   if( error ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
 			     "serialise_mpis: length of r: %s",
@@ -258,7 +258,7 @@ serialise_mpis( libspectrum_byte **signature, size_t *signature_length,
     return LIBSPECTRUM_ERROR_LOGIC;
   }
 
-  error = gcry_mpi_print( GCRYMPI_FMT_PGP, NULL, 0, &length_s, s );
+  error = gcry_mpi_print( GCRYMPI_FMT_PGP, nullptr, 0, &length_s, s );
   if( error ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
 			     "serialise_mpis: length of s: %s",
@@ -280,7 +280,7 @@ serialise_mpis( libspectrum_byte **signature, size_t *signature_length,
   }
 
   ptr = *signature + length; length = *signature_length - length;
-  error = gcry_mpi_print( GCRYMPI_FMT_PGP, ptr, length, NULL, s );
+  error = gcry_mpi_print( GCRYMPI_FMT_PGP, ptr, length, nullptr, s );
   if( error ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC,
 			     "serialise_mpis: printing s: %s",
@@ -308,7 +308,7 @@ libspectrum_verify_signature( libspectrum_signature *signature,
   error = create_key( &key_sexp, key, 0 );
   if( error ) { gcry_sexp_release( hash ); return error; }
 
-  error = gcry_sexp_build( &signature_sexp, NULL, signature_format,
+  error = gcry_sexp_build( &signature_sexp, nullptr, signature_format,
 			   signature->r, signature->s );
 
   if( error ) {

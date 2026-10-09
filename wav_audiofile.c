@@ -39,7 +39,7 @@ internal_wav_open( libspectrum_wav_reader **reader, const char *filename,
   state = libspectrum_new( libspectrum_wav_reader, 1 );
   state->track = AF_DEFAULT_TRACK;
 
-  state->handle = afOpenFile( filename, "r", NULL );
+  state->handle = afOpenFile( filename, "r", nullptr );
   if( state->handle == AF_NULL_FILEHANDLE ) {
     libspectrum_free( state );
     libspectrum_print_error(

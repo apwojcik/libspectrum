@@ -85,7 +85,7 @@ zlib_inflate( const libspectrum_byte *gzptr, size_t gzlength,
   z_stream stream;
   int error;
 
-  *outptr = NULL;
+  *outptr = nullptr;
 
   if( *outlength > max_outlength ) {
     *outlength = 0;
@@ -127,7 +127,7 @@ zlib_inflate( const libspectrum_byte *gzptr, size_t gzlength,
 
   } else {
 
-    *outptr = stream.next_out = NULL;
+    *outptr = stream.next_out = nullptr;
     *outlength = stream.avail_out = 0;
 
     do {
@@ -149,7 +149,7 @@ zlib_inflate( const libspectrum_byte *gzptr, size_t gzlength,
                                  "inflated data exceeds size limit" );
         inflateEnd( &stream );
         libspectrum_free( *outptr );
-        *outptr = NULL; *outlength = 0;
+        *outptr = nullptr; *outlength = 0;
         return LIBSPECTRUM_ERROR_LIMIT;
       }
 

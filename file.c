@@ -30,8 +30,8 @@ libspectrum_file_clear( libspectrum_file *file )
 {
   libspectrum_free( file->filename );
   libspectrum_free( file->buffer );
-  file->filename = NULL;
-  file->buffer = NULL;
+  file->filename = nullptr;
+  file->buffer = nullptr;
   file->length = 0;
   file->type = LIBSPECTRUM_ID_UNKNOWN;
   file->file_class = LIBSPECTRUM_CLASS_UNKNOWN;
@@ -57,8 +57,8 @@ file_resolve( libspectrum_file *file )
       return LIBSPECTRUM_ERROR_NONE;
 
     {
-      char *new_filename = NULL;
-      libspectrum_byte *new_buffer = NULL;
+      char *new_filename = nullptr;
+      libspectrum_byte *new_buffer = nullptr;
       size_t new_length = 0;
 
       error = libspectrum_uncompress_file( &new_buffer, &new_length,
@@ -119,7 +119,7 @@ libspectrum_file*
 libspectrum_file_alloc( void )
 {
   libspectrum_file *file = libspectrum_new( libspectrum_file, 1 );
-  if( !file ) return NULL;
+  if( !file ) return nullptr;
   libspectrum_file_init( file );
   return file;
 }
@@ -139,7 +139,7 @@ libspectrum_file_open( libspectrum_file *file, const char *filename )
   long file_length;
   size_t header_length;
   libspectrum_byte header[ LIBSPECTRUM_FILE_IDENTIFY_LENGTH ];
-  libspectrum_byte *buffer = NULL;
+  libspectrum_byte *buffer = nullptr;
   libspectrum_id_t type;
   libspectrum_class_t class;
   libspectrum_error error;
@@ -162,7 +162,7 @@ libspectrum_file_open( libspectrum_file *file, const char *filename )
     return LIBSPECTRUM_ERROR_UNKNOWN;
   }
 
-  error = libspectrum_identify_file_raw( &type, NULL, header, header_length );
+  error = libspectrum_identify_file_raw( &type, nullptr, header, header_length );
   if( !error ) error = libspectrum_identify_class( &class, type );
   if( error ) {
     fclose( stream );
@@ -216,7 +216,7 @@ libspectrum_error
 libspectrum_file_read_data( libspectrum_file *file, const char *filename,
                             const libspectrum_byte *buffer, size_t length )
 {
-  libspectrum_byte *copy = NULL;
+  libspectrum_byte *copy = nullptr;
 
   if( !file || ( length && !buffer ) ) return LIBSPECTRUM_ERROR_INVALID;
   if( length ) {
@@ -239,10 +239,10 @@ libspectrum_file_take_data( libspectrum_file *file, const char *filename,
 }
 
 const char *libspectrum_file_name( const libspectrum_file *file )
-{ return file ? file->filename : NULL; }
+{ return file ? file->filename : nullptr; }
 
 const libspectrum_byte *libspectrum_file_data( const libspectrum_file *file )
-{ return file ? file->buffer : NULL; }
+{ return file ? file->buffer : nullptr; }
 
 size_t libspectrum_file_size( const libspectrum_file *file )
 { return file ? file->length : 0; }

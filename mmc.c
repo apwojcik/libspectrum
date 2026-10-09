@@ -140,7 +140,7 @@ libspectrum_mmc_alloc( void )
 {
   libspectrum_mmc_card *card = libspectrum_new( libspectrum_mmc_card, 1 );
 
-  card->drive.disk = NULL;
+  card->drive.disk = nullptr;
   card->cache = g_hash_table_new( g_int_hash, g_int_equal );
 
   libspectrum_mmc_reset( card );
@@ -239,17 +239,17 @@ libspectrum_mmc_read( libspectrum_mmc_card *card )
   return r;
 }
 
-static int
+static bool
 parse_command( libspectrum_mmc_card *card, libspectrum_byte b )
 {
   /* All commands should have start bit == 0 and transmitter bit == 1 */
-  if( ( b & 0xc0 ) != 0x40 ) return 0;  /* don't change current state */
+  if( ( b & 0xc0 ) != 0x40 ) return false;  /* don't change current state */
 
   /* Unlike the SD Memory Card protocol, in the SPI mode, the card will always
      respond to a command. The response indicates acceptance or rejection of
      the command. Now wait for arguments and CRC */
   card->current_command = b & 0x3f;
-  return 1;
+  return true;
 }
 
 static void
@@ -519,10 +519,10 @@ send_cid( libspectrum_mmc_card *card )
   card->response_buffer_end = card->response_buffer + 20;
 }
 
-static int
+static bool
 do_application_command( libspectrum_mmc_card *card )
 {
-  int is_acmd = 1;
+  bool is_acmd = true;
 
   switch( card->current_command ) {
     case SD_STATUS:
@@ -552,7 +552,7 @@ do_application_command( libspectrum_mmc_card *card )
       break;
 
     default:
-      is_acmd = 0;
+      is_acmd = false;
       break;
   }
 

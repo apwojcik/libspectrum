@@ -527,7 +527,7 @@ tzx_read_csw( libspectrum_tape *tape, const libspectrum_byte **ptr,
   const libspectrum_byte *p = *ptr;
   libspectrum_dword size, rate, claimed, actual = 0;
   libspectrum_word pause;
-  libspectrum_byte compression, *data = NULL;
+  libspectrum_byte compression, *data = nullptr;
   size_t length, i;
   libspectrum_tape_block *block;
 
@@ -1195,7 +1195,7 @@ tzx_read_data( const libspectrum_byte **ptr, const libspectrum_byte *end,
     /* Copy the block data across, and move along */
     memcpy( *data, *ptr, *length ); *ptr += *length;
   } else {
-    *data = NULL;
+    *data = nullptr;
   }
 
   return LIBSPECTRUM_ERROR_NONE;

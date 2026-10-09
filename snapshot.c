@@ -71,7 +71,7 @@ libspectrum_snap_read( libspectrum_snap *snap, const libspectrum_byte *buffer,
   }
 
   /* Find out if this file needs decompression */
-  new_buffer = NULL;
+  new_buffer = nullptr;
 
   error = libspectrum_identify_file_raw( &raw_type, filename, buffer, length );
   if( error ) return error;
@@ -83,8 +83,8 @@ libspectrum_snap_read( libspectrum_snap *snap, const libspectrum_byte *buffer,
 
     size_t new_length;
 
-    error = libspectrum_uncompress_file( &new_buffer, &new_length, NULL,
-					 raw_type, buffer, length, NULL );
+    error = libspectrum_uncompress_file( &new_buffer, &new_length, nullptr,
+					 raw_type, buffer, length, nullptr );
     if( error ) return error;
     buffer = new_buffer; length = new_length;
   }

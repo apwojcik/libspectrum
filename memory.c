@@ -44,7 +44,7 @@ libspectrum_malloc( size_t size )
 {
   void *ptr = libspectrum_malloc_fn( size );
 
-  /* If size == 0, acceptable to return NULL */
+  /* If size == 0, acceptable to return nullptr */
   if( size && !ptr ) abort();
 
   return ptr;
@@ -67,7 +67,7 @@ libspectrum_malloc0_n( size_t nmemb, size_t size )
 
   ptr = libspectrum_calloc_fn( nmemb, size );
 
-  /* If nmemb * size == 0, acceptable to return NULL */
+  /* If nmemb * size == 0, acceptable to return nullptr */
   if( nmemb && size && !ptr ) abort();
 
   return ptr;
@@ -84,7 +84,7 @@ libspectrum_realloc( void *ptr, size_t size )
 {
   ptr = libspectrum_realloc_fn( ptr, size );
 
-  /* If size == 0, acceptable to return NULL */
+  /* If size == 0, acceptable to return nullptr */
   if( size && !ptr ) abort();
 
   return ptr;

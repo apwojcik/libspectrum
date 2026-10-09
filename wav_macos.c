@@ -68,7 +68,7 @@ internal_wav_open( libspectrum_wav_reader **reader, const char *filename,
   state = libspectrum_new0( libspectrum_wav_reader, 1 );
 
   url = CFURLCreateFromFileSystemRepresentation(
-          NULL, (const UInt8*)filename, (CFIndex)strlen( filename ), false );
+          nullptr, (const UInt8*)filename, (CFIndex)strlen( filename ), false );
   if( !url ) {
     libspectrum_free( state );
     libspectrum_print_error(

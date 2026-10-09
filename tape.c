@@ -175,12 +175,12 @@ libspectrum_tape*
 libspectrum_tape_alloc( void )
 {
   libspectrum_tape *tape = libspectrum_new( libspectrum_tape, 1 );
-  tape->blocks = NULL;
-  tape->last_block = NULL;
+  tape->blocks = nullptr;
+  tape->last_block = nullptr;
   tape->generation = 0;
   tape->block_generation = 0;
   libspectrum_tape_iterator_init( &(tape->state.current_block), tape );
-  tape->state.loop_block = NULL;
+  tape->state.loop_block = nullptr;
   tape->state.signal_level = LIBSPECTRUM_TAPE_SIGNAL_LOW;
   tape->state.force_low_level = 1;
   return tape;
@@ -190,13 +190,13 @@ libspectrum_tape_alloc( void )
 libspectrum_error
 libspectrum_tape_clear( libspectrum_tape *tape )
 {
-  g_slist_foreach( tape->blocks, block_free, NULL );
+  g_slist_foreach( tape->blocks, block_free, nullptr );
   g_slist_free( tape->blocks );
-  tape->blocks = NULL;
-  tape->last_block = NULL;
+  tape->blocks = nullptr;
+  tape->last_block = nullptr;
   tape->generation++;
   libspectrum_tape_iterator_init( &(tape->state.current_block), tape );
-  tape->state.loop_block = NULL;
+  tape->state.loop_block = nullptr;
   tape->state.signal_level = LIBSPECTRUM_TAPE_SIGNAL_LOW;
   tape->state.force_low_level = 1;
 
@@ -251,7 +251,7 @@ libspectrum_tape_read( libspectrum_tape *tape, const libspectrum_byte *buffer,
   }
 
   /* Find out if this file needs decompression */
-  new_buffer = NULL;
+  new_buffer = nullptr;
 
   error = libspectrum_identify_file_raw( &raw_type, filename, buffer, length );
   if( error ) return error;
@@ -263,8 +263,8 @@ libspectrum_tape_read( libspectrum_tape *tape, const libspectrum_byte *buffer,
 
     size_t new_length;
 
-    error = libspectrum_uncompress_file( &new_buffer, &new_length, NULL,
-					 raw_type, buffer, length, NULL );
+    error = libspectrum_uncompress_file( &new_buffer, &new_length, nullptr,
+					 raw_type, buffer, length, nullptr );
     if( error ) return error;
     buffer = new_buffer; length = new_length;
   }
@@ -334,7 +334,7 @@ libspectrum_tape_write( libspectrum_byte **buffer, size_t *length,
   }
 
   /* Allow for uninitialised buffer on entry */
-  if( !*length ) *buffer = NULL;
+  if( !*length ) *buffer = nullptr;
 
   new_buffer = libspectrum_buffer_alloc();
 
@@ -394,7 +394,7 @@ libspectrum_tape_write( libspectrum_byte **buffer, size_t *length,
 int
 libspectrum_tape_present( const libspectrum_tape *tape )
 {
-  return tape->blocks != NULL;
+  return tape->blocks != nullptr;
 }
 
 /* Some flags which may be set after calling libspectrum_tape_get_next_edge */
@@ -512,7 +512,7 @@ libspectrum_tape_get_next_edge_internal( libspectrum_dword *tstates,
           it->current_block = it->loop_block;
           no_advance = 1;
         } else {
-          it->loop_block = NULL;
+          it->loop_block = nullptr;
         }
       }
       *tstates = 0; *flags |= LIBSPECTRUM_TAPE_FLAGS_NO_EDGE;
@@ -652,7 +652,7 @@ libspectrum_tape_get_next_edge_internal( libspectrum_dword *tstates,
 
       /* If we've just hit the end of the tape, stop the tape (and
 	 then `rewind' to the start) */
-      if( libspectrum_tape_iterator_current( it->current_block ) == NULL ) {
+      if( libspectrum_tape_iterator_current( it->current_block ) == nullptr ) {
 	*flags |= LIBSPECTRUM_TAPE_FLAGS_STOP;
         *flags |= LIBSPECTRUM_TAPE_FLAGS_TAPE;
         /* Need to have an edge at the end of the tape to terminate the last
@@ -743,7 +743,7 @@ libspectrum_tape_signal_level_get( libspectrum_tape_signal_level *level,
   return LIBSPECTRUM_ERROR_NONE;
 }
 
-static int
+static bool
 cursor_valid( const libspectrum_tape_cursor *cursor )
 {
   return cursor && cursor->tape &&
@@ -756,7 +756,7 @@ libspectrum_tape_cursor_capture( libspectrum_tape *tape )
 {
   libspectrum_tape_cursor *cursor;
 
-  if( !tape ) return NULL;
+  if( !tape ) return nullptr;
 
   cursor = libspectrum_new( libspectrum_tape_cursor, 1 );
   cursor->tape = tape;
@@ -772,7 +772,7 @@ libspectrum_tape_cursor_clone( const libspectrum_tape_cursor *cursor )
 {
   libspectrum_tape_cursor *clone;
 
-  if( !cursor_valid( cursor ) ) return NULL;
+  if( !cursor_valid( cursor ) ) return nullptr;
 
   clone = libspectrum_new( libspectrum_tape_cursor, 1 );
   *clone = *cursor;
@@ -985,7 +985,7 @@ turbo_edge( libspectrum_tape_turbo_block *block,
       *tstates = block->pilot_length;
       break;
     }
-    /* Fall through */
+    [[fallthrough]];
 
   case LIBSPECTRUM_TAPE_STATE_SYNC1:
     /* The first short sync pulse */
@@ -1401,7 +1401,7 @@ jump_blocks( libspectrum_tape *tape, libspectrum_tape_block_state *it,
   if( current_position == -1 ) return LIBSPECTRUM_ERROR_LOGIC;
 
   new_block = g_slist_nth( tape->blocks, current_position + offset );
-  if( new_block == NULL ) return LIBSPECTRUM_ERROR_CORRUPT;
+  if( new_block == nullptr ) return LIBSPECTRUM_ERROR_CORRUPT;
 
   it->current_block = new_block;
 
@@ -1589,7 +1589,7 @@ libspectrum_tape_peek_next_block( libspectrum_tape *tape )
 {
   libspectrum_tape_block *block;
 
-  if( !tape->state.current_block ) return NULL;
+  if( !tape->state.current_block ) return nullptr;
 
   block = libspectrum_tape_iterator_current( tape->state.current_block->next );
   return block ? block : tape->blocks->data;
@@ -1599,7 +1599,7 @@ libspectrum_tape_peek_next_block( libspectrum_tape *tape )
 libspectrum_tape_block LIBSPECTRUM_API *
 libspectrum_tape_peek_last_block( libspectrum_tape *tape )
 {
-  return tape->last_block ? tape->last_block->data : NULL;
+  return tape->last_block ? tape->last_block->data : nullptr;
 }
 
 /* Cause the next block on the tape to be active, initialise it
@@ -1609,18 +1609,18 @@ libspectrum_tape_select_next_block( libspectrum_tape *tape )
 {
   libspectrum_tape_block *block;
 
-  if( !tape->state.current_block ) return NULL;
+  if( !tape->state.current_block ) return nullptr;
 
   block = libspectrum_tape_iterator_next( &(tape->state.current_block) );
 
   if( !block )
     block = libspectrum_tape_iterator_init( &(tape->state.current_block), tape );
 
-  tape->state.loop_block = NULL;
+  tape->state.loop_block = nullptr;
   tape->state.signal_level = LIBSPECTRUM_TAPE_SIGNAL_LOW;
   tape->state.force_low_level = 1;
   if( libspectrum_tape_block_init( block, &(tape->state) ) )
-    return NULL;
+    return nullptr;
 
   return block;
 }
@@ -1666,7 +1666,7 @@ libspectrum_tape_nth_block( libspectrum_tape *tape, int n )
   }
 
   tape->state.current_block = new_block;
-  tape->state.loop_block = NULL;
+  tape->state.loop_block = nullptr;
   tape->state.signal_level = LIBSPECTRUM_TAPE_SIGNAL_LOW;
   tape->state.force_low_level = 1;
 
@@ -1688,7 +1688,7 @@ libspectrum_tape_append_block( libspectrum_tape *tape,
 
   tape->generation++;
 
-  if( tape->blocks == NULL ) {
+  if( tape->blocks == nullptr ) {
     tape->blocks = g_slist_append( tape->blocks, (gpointer)block );
     tape->last_block = tape->blocks;
   } else {
@@ -1697,7 +1697,7 @@ libspectrum_tape_append_block( libspectrum_tape *tape,
   }
 
   /* If we previously didn't have a tape loaded ( implied by
-     tape->current_block == NULL ), set up so that we point to the
+     tape->current_block == nullptr ), set up so that we point to the
      start of the tape */
   if( !tape->state.current_block ) {
     tape->state.current_block = tape->blocks;
@@ -1772,7 +1772,7 @@ tape_block_description( libspectrum_tape_type type )
   case LIBSPECTRUM_TAPE_BLOCK_CONCAT:           return "Glue Block";
   }
 
-  return NULL;
+  return nullptr;
 }
 
 libspectrum_error
@@ -1886,13 +1886,13 @@ libspectrum_tape_block_internal_init(
 				libspectrum_tape *tape )
 {
   if( !tape || !tape->blocks )
-    return NULL;
+    return nullptr;
 
   it->current_block = tape->blocks;
 
   if( libspectrum_tape_block_init( it->current_block->data,
                                    it ) )
-    return NULL;
+    return nullptr;
 
   return libspectrum_tape_iterator_current( it->current_block );
 }
@@ -1900,7 +1900,7 @@ libspectrum_tape_block_internal_init(
 libspectrum_tape_block*
 libspectrum_tape_iterator_current( libspectrum_tape_iterator iterator )
 {
-  return iterator ? iterator->data : NULL;
+  return iterator ? iterator->data : nullptr;
 }
 
 libspectrum_tape_block*
@@ -1910,7 +1910,7 @@ libspectrum_tape_iterator_next( libspectrum_tape_iterator *iterator )
     *iterator = (*iterator)->next;
     return libspectrum_tape_iterator_current( *iterator );
   }
-  return NULL;
+  return nullptr;
 }
 
 libspectrum_tape_block*
@@ -1919,7 +1919,7 @@ libspectrum_tape_iterator_peek_next( libspectrum_tape_iterator iterator )
   if( iterator ) {
     return libspectrum_tape_iterator_current( iterator->next );
   }
-  return NULL;
+  return nullptr;
 }
 
 libspectrum_tape_state_type

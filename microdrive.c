@@ -121,7 +121,7 @@ libspectrum_microdrive_set_cartridge_len( libspectrum_microdrive *microdrive,
 static const libspectrum_byte*
 get_block_data( const libspectrum_microdrive *microdrive, size_t which )
 {
-  if( !microdrive || which >= microdrive->cartridge_len ) return NULL;
+  if( !microdrive || which >= microdrive->cartridge_len ) return nullptr;
 
   return microdrive->data + which * LIBSPECTRUM_MICRODRIVE_BLOCK_LEN;
 }
@@ -161,7 +161,7 @@ libspectrum_microdrive_block_cartridge_name(
   const libspectrum_microdrive *microdrive, size_t which )
 {
   const libspectrum_byte *block = get_block_data( microdrive, which );
-  return block ? block + 4 : NULL;
+  return block ? block + 4 : nullptr;
 }
 
 libspectrum_byte
@@ -201,7 +201,7 @@ libspectrum_microdrive_block_record_name(
   const libspectrum_microdrive *microdrive, size_t which )
 {
   const libspectrum_byte *block = get_block_data( microdrive, which );
-  return block ? block + 19 : NULL;
+  return block ? block + 19 : nullptr;
 }
 
 libspectrum_byte
@@ -217,7 +217,7 @@ libspectrum_microdrive_block_data( const libspectrum_microdrive *microdrive,
                                    size_t which )
 {
   const libspectrum_byte *block = get_block_data( microdrive, which );
-  return block ? block + 30 : NULL;
+  return block ? block + 30 : nullptr;
 }
 
 libspectrum_byte

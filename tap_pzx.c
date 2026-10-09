@@ -33,116 +33,116 @@ typedef struct {
   libspectrum_buffer *output;
 } rom_decoder;
 
-static int
+static bool
 is_near( libspectrum_dword duration, unsigned nominal )
 {
   unsigned tolerance = nominal / 20;
   return duration >= nominal - tolerance && duration <= nominal + tolerance;
 }
 
-static int
+static bool
 finish_data( rom_decoder *d )
 {
   if( d->phase != DATA ) return d->phase == GAP;
   if( d->half != -1 || d->bits || d->used < 2 || d->checksum ||
       ( d->bytes[0] != 0 && d->bytes[0] != 0xff ) ||
-      ( d->bytes[0] == 0 && d->used != 19 ) ) return 0;
+      ( d->bytes[0] == 0 && d->used != 19 ) ) return false;
   libspectrum_buffer_write_word( d->output, d->used );
   libspectrum_buffer_write( d->output, d->bytes, d->used );
   d->blocks++;
   d->phase = GAP;
   d->gap_pulses = 0;
-  return 1;
+  return true;
 }
 
-static int
+static bool
 bit_pulse( rom_decoder *d, int bit )
 {
-  if( d->half == -1 ) { d->half = bit; return 1; }
-  if( d->half != bit ) return 0;
+  if( d->half == -1 ) { d->half = bit; return true; }
+  if( d->half != bit ) return false;
   d->half = -1;
   d->byte = ( d->byte << 1 ) | bit;
   if( ++d->bits == 8 ) {
-    if( d->used == 65535 ) return 0;
+    if( d->used == 65535 ) return false;
     d->bytes[d->used++] = d->byte;
     d->checksum ^= d->byte;
     d->bits = d->byte = 0;
   }
-  return 1;
+  return true;
 }
 
-static int
+static bool
 pulse( rom_decoder *d, libspectrum_dword duration )
 {
   /* Pilot runs are consumed in bulk by pulse_run(). */
   switch( d->phase ) {
   case GAP:
-    if( duration < 3500 || d->gap_pulses ) return 0;
+    if( duration < 3500 || d->gap_pulses ) return false;
     d->gap_pulses = 1;
-    return 1;
+    return true;
   case PILOT:
-    if( d->pilot < 256 || !is_near( duration, 667 ) ) return 0;
+    if( d->pilot < 256 || !is_near( duration, 667 ) ) return false;
     d->phase = SYNC2;
-    return 1;
+    return true;
   case SYNC2:
-    if( !is_near( duration, 735 ) ) return 0;
+    if( !is_near( duration, 735 ) ) return false;
     d->phase = DATA;
     d->used = d->bits = d->byte = d->checksum = 0;
     d->half = -1;
-    return 1;
+    return true;
   case DATA:
     if( is_near( duration, 855 ) ) return bit_pulse( d, 0 );
     if( is_near( duration, 1710 ) ) return bit_pulse( d, 1 );
     /* A ROM tail or silence terminates data only at a valid byte boundary.
        pulse_run() also allows a following pilot to delimit blocks. */
-    if( !finish_data( d ) ) return 0;
-    if( is_near( duration, 945 ) ) return 1;
+    if( !finish_data( d ) ) return false;
+    if( is_near( duration, 945 ) ) return true;
     return pulse( d, duration );
   }
-  return 0;
+  return false;
 }
 
-static int
+static bool
 pulse_run( rom_decoder *d, libspectrum_dword duration, size_t count )
 {
   size_t i;
-  if( !count || duration > 0x7fffffff ) return 0;
+  if( !count || duration > 0x7fffffff ) return false;
   if( is_near( duration, 2168 ) ) {
-    if( d->phase == DATA && !finish_data( d ) ) return 0;
-    if( d->phase != GAP && d->phase != PILOT ) return 0;
+    if( d->phase == DATA && !finish_data( d ) ) return false;
+    if( d->phase != GAP && d->phase != PILOT ) return false;
     if( d->phase == GAP ) d->pilot = 0;
     d->phase = PILOT;
     d->pilot += count < 256 - d->pilot ? count : 256 - d->pilot;
-    return 1;
+    return true;
   }
   /* Bound work even for malicious repeat counts. Data cannot exceed TAP's
      65535-byte limit; long alternating holds are not silence. */
-  if( count > 65535 * 16U || ( duration >= 3500 && count != 1 ) ) return 0;
-  for( i = 0; i < count; i++ ) if( !pulse( d, duration ) ) return 0;
-  return 1;
+  if( count > 65535 * 16U || ( duration >= 3500 && count != 1 ) ) return false;
+  for( i = 0; i < count; i++ ) if( !pulse( d, duration ) ) return false;
+  return true;
 }
 
-static int
+static bool
 sequence( rom_decoder *d, libspectrum_tape_block *block )
 {
   libspectrum_tape_pulse_sequence_block *p = &block->types.pulse_sequence;
   size_t i;
   int level;
-  if( !p->count || !p->lengths || !p->pulse_repeats ) return 0;
+  if( !p->count || !p->lengths || !p->pulse_repeats ) return false;
   level = !p->lengths[0];
-  if( d->phase != GAP && level != d->level ) return 0;
-  if( level && p->count == 1 ) return 0;
+  if( d->phase != GAP && level != d->level ) return false;
+  if( level && p->count == 1 ) return false;
   for( i = 0; i < p->count; i++ ) {
     /* Fuse starts a high-level chunk with a single zero polarity marker. */
     if( !p->lengths[i] ) {
-      if( i || p->pulse_repeats[i] != 1 ) return 0;
+      if( i || p->pulse_repeats[i] != 1 ) return false;
     } else {
-      if( !pulse_run( d, p->lengths[i], p->pulse_repeats[i] ) ) return 0;
+      if( !pulse_run( d, p->lengths[i], p->pulse_repeats[i] ) ) return false;
       level ^= p->pulse_repeats[i] & 1;
     }
   }
   d->level = level;
-  return 1;
+  return true;
 }
 
 libspectrum_error
@@ -151,7 +151,7 @@ internal_tap_write_pzx( libspectrum_buffer *buffer, libspectrum_tape *tape )
   rom_decoder d = { .phase = GAP, .half = -1, .output = buffer };
   libspectrum_tape_iterator it;
   libspectrum_tape_block *block;
-  int ok = 1;
+  bool ok = true;
   d.bytes = libspectrum_new( libspectrum_byte, 65535 );
   for( block = libspectrum_tape_iterator_init( &it, tape ); block && ok;
        block = libspectrum_tape_iterator_next( &it ) ) {
@@ -171,7 +171,7 @@ internal_tap_write_pzx( libspectrum_buffer *buffer, libspectrum_tape *tape )
     case LIBSPECTRUM_TAPE_BLOCK_SET_SIGNAL_LEVEL:
       break;
     default:
-      ok = 0; break;
+      ok = false; break;
     }
   }
   ok = ok && finish_data( &d ) && d.blocks;

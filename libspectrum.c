@@ -81,7 +81,7 @@ libspectrum_init( void )
       libspectrum_print_error(
         LIBSPECTRUM_ERROR_LOGIC,
 	"libspectrum_init: found libgcrypt %s, but need %s",
-	gcry_check_version( NULL ), MIN_GCRYPT_VERSION
+	gcry_check_version( nullptr ), MIN_GCRYPT_VERSION
       );
       return LIBSPECTRUM_ERROR_LOGIC;	/* FIXME: better error code */
     }
@@ -93,7 +93,7 @@ libspectrum_init( void )
 
 #else				/* #ifdef HAVE_GCRYPT_H */
 
-  gcrypt_version = NULL;
+  gcrypt_version = nullptr;
 
 #endif				/* #ifdef HAVE_GCRYPT_H */
 
@@ -372,7 +372,7 @@ libspectrum_identify_file_with_class(
   const char *filename, const unsigned char *buffer, size_t length )
 {
   libspectrum_error error;
-  char *new_filename = NULL; unsigned char *new_buffer; size_t new_length;
+  char *new_filename = nullptr; unsigned char *new_buffer; size_t new_length;
 
   error = libspectrum_identify_file_raw( type, filename, buffer, length );
   if( error ) return error;
@@ -428,24 +428,24 @@ libspectrum_identify_file_raw( libspectrum_id_t *type, const char *filename,
       
       { LIBSPECTRUM_ID_RECORDING_RZX, "rzx", 3, "RZX!",		    0, 4, 4 },
 
-      { LIBSPECTRUM_ID_SNAPSHOT_SNA,  "sna", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_SNAPSHOT_SNA,  "sna", 3, nullptr,		    0, 0, 0 },
       /* Peter McGavin's Spectrum Emulator on the Amiga used .snapshot for sna
          snaps */
-      { LIBSPECTRUM_ID_SNAPSHOT_SNA,  "snapshot", 3, NULL,	    0, 0, 0 },
-      { LIBSPECTRUM_ID_SNAPSHOT_DSNAP,  "s", 3, NULL,		    0, 0, 0 },
-      { LIBSPECTRUM_ID_SNAPSHOT_SNP,  "snp", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_SNAPSHOT_SNA,  "snapshot", 3, nullptr,	    0, 0, 0 },
+      { LIBSPECTRUM_ID_SNAPSHOT_DSNAP,  "s", 3, nullptr,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_SNAPSHOT_SNP,  "snp", 3, nullptr,		    0, 0, 0 },
       { LIBSPECTRUM_ID_SNAPSHOT_SP,   "sp",  3, "\x53\x50\0",	    0, 3, 1 },
       { LIBSPECTRUM_ID_SNAPSHOT_SZX,  "szx", 3, "ZXST",		    0, 4, 4 },
       { LIBSPECTRUM_ID_SNAPSHOT_Z80,  "z80", 3, "\0\0",		    6, 2, 1 },
       /* .slt files also dealt with by the .z80 loading code */
       { LIBSPECTRUM_ID_SNAPSHOT_Z80,  "slt", 3, "\0\0",		    6, 2, 1 },
       { LIBSPECTRUM_ID_SNAPSHOT_ZXS,  "zxs", 3, "SNAP",		    8, 4, 4 },
-      { LIBSPECTRUM_ID_SNAPSHOT_PLUSD,"mgtsnp", 3, NULL,	    0, 0, 0 },
+      { LIBSPECTRUM_ID_SNAPSHOT_PLUSD,"mgtsnp", 3, nullptr,	    0, 0, 0 },
 
-      { LIBSPECTRUM_ID_CARTRIDGE_DCK, "dck", 3, NULL,		    0, 0, 0 },
-      { LIBSPECTRUM_ID_CARTRIDGE_IF2, "rom", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_CARTRIDGE_DCK, "dck", 3, nullptr,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_CARTRIDGE_IF2, "rom", 3, nullptr,		    0, 0, 0 },
 
-      { LIBSPECTRUM_ID_MICRODRIVE_MDR, "mdr", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_MICRODRIVE_MDR, "mdr", 3, nullptr,		    0, 0, 0 },
 
       { LIBSPECTRUM_ID_TAPE_TAP,      "tap", 3, "\x13\0\0",	    0, 3, 1 },
       { LIBSPECTRUM_ID_TAPE_SPC,      "spc", 3, "\x11\0\0",	    0, 3, 1 },
@@ -456,7 +456,7 @@ libspectrum_identify_file_raw( libspectrum_id_t *type, const char *filename,
       { LIBSPECTRUM_ID_TAPE_PZX,      "pzx", 3, "PZXT",		    0, 4, 4 },
 
       { LIBSPECTRUM_ID_DISK_SCL,      "scl", 3, "SINCLAIR",         0, 8, 4 },
-      { LIBSPECTRUM_ID_DISK_TRD,      "trd", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_DISK_TRD,      "trd", 3, nullptr,		    0, 0, 0 },
 
       { LIBSPECTRUM_ID_HARDDISK_HDF,  "hdf", 3, "RS-IDE\x1a",	    0, 7, 4 },
 
@@ -467,10 +467,10 @@ libspectrum_identify_file_raw( libspectrum_id_t *type, const char *filename,
       { LIBSPECTRUM_ID_TAPE_Z80EM,    "raw", 1, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0Raw tape sample",  0, 64, 0 },
       { LIBSPECTRUM_ID_TAPE_CSW,      "csw", 2, "Compressed Square Wave\x1a",  0, 23, 4 },
 
-      { LIBSPECTRUM_ID_TAPE_WAV,      "wav", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_TAPE_WAV,      "wav", 3, nullptr,		    0, 0, 0 },
 
-      { LIBSPECTRUM_ID_DISK_MGT,      "mgt", 3, NULL,		    0, 0, 0 },
-      { LIBSPECTRUM_ID_DISK_IMG,      "img", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_DISK_MGT,      "mgt", 3, nullptr,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_DISK_IMG,      "img", 3, nullptr,		    0, 0, 0 },
 
       { LIBSPECTRUM_ID_DISK_UDI,      "udi", 3, "UDI!",		    0, 4, 4 },
       { LIBSPECTRUM_ID_DISK_ECPC,     "dsk", 3, "EXTENDED", 0, 8, 4 },
@@ -480,23 +480,23 @@ libspectrum_identify_file_raw( libspectrum_id_t *type, const char *filename,
       { LIBSPECTRUM_ID_DISK_TD0,      "td0", 3, "TD",               0, 2, 4 },
       { LIBSPECTRUM_ID_DISK_TD0,      "td0", 3, "td",               0, 2, 4 },
 
-      { LIBSPECTRUM_ID_DISK_OPD,      "opd", 3, NULL,		    0, 0, 0 },
-      { LIBSPECTRUM_ID_DISK_OPD,      "opu", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_DISK_OPD,      "opd", 3, nullptr,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_DISK_OPD,      "opu", 3, nullptr,		    0, 0, 0 },
 
-      { LIBSPECTRUM_ID_DISK_D80,      "d80", 3, NULL,		    0, 0, 0 },
-      { LIBSPECTRUM_ID_DISK_D80,      "d40", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_DISK_D80,      "d80", 3, nullptr,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_DISK_D80,      "d40", 3, nullptr,		    0, 0, 0 },
 
-      { LIBSPECTRUM_ID_AUX_POK,       "pok", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_AUX_POK,       "pok", 3, nullptr,		    0, 0, 0 },
 
-      { LIBSPECTRUM_ID_SCREEN_SCR,    "scr", 3, NULL,		    0, 0, 0 },
-      { LIBSPECTRUM_ID_SCREEN_MLT,    "mlt", 3, NULL,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_SCREEN_SCR,    "scr", 3, nullptr,		    0, 0, 0 },
+      { LIBSPECTRUM_ID_SCREEN_MLT,    "mlt", 3, nullptr,		    0, 0, 0 },
 
-      { -1, NULL, 0, NULL, 0, 0, 0 }, /* End marker */
+      { -1, nullptr, 0, nullptr, 0, 0, 0 }, /* End marker */
 
     };
 
   const struct type *ptr;
-  const char *extension = NULL;
+  const char *extension = nullptr;
   int score, best_score, best_guess, duplicate_best;
 
   /* Get the filename extension, if it exists */
@@ -541,7 +541,7 @@ libspectrum_identify_file_raw( libspectrum_id_t *type, const char *filename,
 #ifndef __MORPHOS__
     if( xfdMasterBase = IExec->OpenLibrary("xfdmaster.library",38 ) ) {
       if( IxfdMaster =
-         (struct xfdMasterIFace *)IExec->GetInterface(xfdMasterBase,"main",1,NULL)){
+         (struct xfdMasterIFace *)IExec->GetInterface(xfdMasterBase,"main",1,nullptr)){
         if( xfdobj = (struct xfdBufferInfo *)IxfdMaster->xfdAllocObject(XFDOBJ_BUFFERINFO) ) {
 #else				/* #ifndef __MORPHOS__ */
     if( xfdMasterBase = OpenLibrary("xfdmaster.library",38 ) ) {
@@ -815,7 +815,7 @@ libspectrum_uncompress_file( unsigned char **new_buffer, size_t *new_length,
 #ifndef __MORPHOS__
       if( xfdMasterBase = IExec->OpenLibrary( "xfdmaster.library", 38 ) ) {
         if( IxfdMaster =
-            (struct xfdMasterIFace *)IExec->GetInterface(xfdMasterBase,"main",1,NULL)) {
+            (struct xfdMasterIFace *)IExec->GetInterface(xfdMasterBase,"main",1,nullptr)) {
           if( xfdobj =
               (struct xfdBufferInfo *)IxfdMaster->xfdAllocObject(XFDOBJ_BUFFERINFO) ) {
 #else				/* #ifndef __MORPHOS__ */

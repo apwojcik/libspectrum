@@ -151,10 +151,10 @@ read_local_header( zip_local_header *local_info,
   return ZIP_LOCAL_HEADER_SIZE;
 }
 
-static int
+static bool
 match_file_names( const char *a, const char *b, const int ignore_case )
 {
-  if( !a || !b ) return 0;
+  if( !a || !b ) return false;
 
   return ( ignore_case ? ( strcasecmp( a, b ) == 0 ) :
                           ( strcmp( a, b ) == 0 ) );
@@ -165,10 +165,10 @@ static void
 close_zip( struct libspectrum_zip *z )
 {
   z->state = ARCHIVE_CLOSED;
-  z->input_data = NULL;
+  z->input_data = nullptr;
   z->data_size = 0;
-  z->ptr = NULL;
-  z->end = NULL;
+  z->ptr = nullptr;
+  z->end = nullptr;
 }
 
 /* Locate the ZIP central directory info */
@@ -247,7 +247,7 @@ libspectrum_zip_rewind( struct libspectrum_zip *z )
 }
 
 /* Read next entry in the ZIP central directory */
-static int
+static bool
 read_directory( struct libspectrum_zip *z )
 {
   int retry, retval;
@@ -258,21 +258,21 @@ read_directory( struct libspectrum_zip *z )
 
     /* Stop when we have read it all */
     if( z->file_index >= z->file_count ) {
-      return 1;
+      return true;
     }
     z->file_index++;
 
     /* Read the info */
     retval = read_file_header( &z->file_info, z->ptr, z->end );
     if( !retval ) {
-      return 1;
+      return true;
     } else {
       z->ptr += retval;
     }
 
     /* Verify the header */
     if( z->file_info.magic != ZIP_FILE_HEADER_SIG ) {
-      return 1;
+      return true;
     }
 
     /* Unix file names are case sensitive, the rest is not (or I don't know) */
@@ -283,7 +283,7 @@ read_directory( struct libspectrum_zip *z )
     name_size = z->file_info.name_size;
 
     if( z->ptr + name_size > z->end ) {
-      return 1;
+      return true;
     }
 
     if( name_size < sizeof( z->file_name ) ) {
@@ -297,12 +297,12 @@ read_directory( struct libspectrum_zip *z )
 
     /* Skip to the next file header if necessary */
     if( skip > 0 && seek( z, skip, SEEK_CUR ) ) {
-      return 1;
+      return true;
     }
 
   } while( retry );
 
-  return 0;
+  return false;
 }
 
 /* Open a ZIP archive from memory */
@@ -312,7 +312,7 @@ libspectrum_zip_open( const libspectrum_byte *buffer, size_t length )
   struct libspectrum_zip *z;
   libspectrum_error error;
 
-  if( !buffer || !length ) return NULL;
+  if( !buffer || !length ) return nullptr;
 
   z = libspectrum_new0( libspectrum_zip, 1 );
   z->input_data = buffer;
@@ -326,12 +326,12 @@ libspectrum_zip_open( const libspectrum_byte *buffer, size_t length )
     libspectrum_print_error( error, "Unrecognized ZIP archive" );
 
     libspectrum_zip_close( z );
-    return NULL;
+    return nullptr;
   }
 
   if( libspectrum_zip_rewind( z ) ) {
     libspectrum_zip_close( z );
-    return NULL;
+    return nullptr;
   }
 
   return z;
@@ -390,11 +390,11 @@ libspectrum_zip_locate( struct libspectrum_zip *z, const char *filename,
   ignore_case = ( flags & ZIPFLAG_AUTOCASE ) ? z->file_ignore_case :
                                                ( flags & ZIPFLAG_NOCASE );
 
-  while( read_directory( z ) == 0 ) {
+  while( !read_directory( z ) ) {
     const char *fname, *slash;
 
     /* Ignore directories in path */
-    fname = NULL;
+    fname = nullptr;
     if( ignore_dir ) {
       slash = strrchr( z->file_name, '/' );
       fname = slash ? slash + 1 : z->file_name;
@@ -599,7 +599,7 @@ libspectrum_zip_blind_read( const libspectrum_byte *zipptr, size_t ziplength,
     if( !info.size ) continue; 
 
     /* Try to identify the file by the filename */
-    error = libspectrum_identify_file_raw( &type, info.filename, NULL, 0 );
+    error = libspectrum_identify_file_raw( &type, info.filename, nullptr, 0 );
     if( error ) continue;
 
     error = libspectrum_identify_class( &class, type );

@@ -139,7 +139,7 @@ static const timings_t base_timings[] = {
   /* +3 */
   { 3546900, 1773400, &timings_frame_amstrad_asic },
   /* Unknown machine */
-  { 0, 0, NULL },
+  { 0, 0, nullptr },
   /* 16K */
   { 3500000,       0, &timings_frame_ferranti_5c_6c },
   /* TC2068 */

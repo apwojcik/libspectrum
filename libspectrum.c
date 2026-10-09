@@ -34,7 +34,7 @@
 #include <gcrypt.h>
 
 /* The version of libgcrypt that we need */
-static const char * const MIN_GCRYPT_VERSION = "1.1.42";
+static constexpr const char *MIN_GCRYPT_VERSION = "1.1.42";
 
 #endif				/* #ifdef HAVE_GCRYPT_H */
 
@@ -424,7 +424,7 @@ libspectrum_identify_file_raw( libspectrum_id_t *type, const char *filename,
     const char *signature; size_t offset, length; int sig_score;
   };
 
-  static const struct type types[] = {
+  static constexpr struct type types[] = {
       
       { LIBSPECTRUM_ID_RECORDING_RZX, "rzx", 3, "RZX!",		    0, 4, 4 },
 

@@ -36,7 +36,7 @@ libspectrum_z80em_read( libspectrum_tape *tape,
   libspectrum_tape_block *block;
   libspectrum_tape_rle_pulse_block *z80em_block;
 
-  static const char id[] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0Raw tape sample";
+  static constexpr char id[] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0Raw tape sample";
 
   if( length < sizeof( id ) ) {
     libspectrum_print_error(

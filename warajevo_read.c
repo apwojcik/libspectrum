@@ -30,8 +30,8 @@
 
 #include "internals.h"
 
-static const libspectrum_word RECORD_SAMPLES = 0xfffe;
-static const libspectrum_word COMPRESSED_BLOCK = 0xffff;
+static constexpr libspectrum_word RECORD_SAMPLES = 0xfffe;
+static constexpr libspectrum_word COMPRESSED_BLOCK = 0xffff;
 
 enum raw_data_frequency {
   HZ15000 = 0,
@@ -106,7 +106,7 @@ static copy_command command;
 
 /* The Warajevo .tap file signature (3rd group of 4 bytes) also end of tap
    marker */
-static const libspectrum_dword warajevo_signature = 0xffffffff;
+static constexpr libspectrum_dword warajevo_signature = 0xffffffff;
 
 /*** Local function prototypes ***/
 

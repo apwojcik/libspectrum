@@ -34,8 +34,8 @@
    pilot pulse, which gives a difference of one in both cases. The
    further difference of 4 in the header count is just a screw-up in
    the .tzx specification AFAICT */
-static const size_t LIBSPECTRUM_TAPE_PILOTS_HEADER = 0x1f7f;
-static const size_t LIBSPECTRUM_TAPE_PILOTS_DATA   = 0x0c97;
+static constexpr size_t LIBSPECTRUM_TAPE_PILOTS_HEADER = 0x1f7f;
+static constexpr size_t LIBSPECTRUM_TAPE_PILOTS_DATA   = 0x0c97;
 
 /* Functions to initialise block types */
 
@@ -573,7 +573,7 @@ convert_pulses_to_tstates( libspectrum_dword set_bit_length,
                            libspectrum_dword unset_bit_length,
                            int bits_set_in_block, int bit_block_size )
 {
-  static const int pulses_in_bit = 2;
+  static constexpr int pulses_in_bit = 2;
   return ( pulses_in_bit * set_bit_length ) * bits_set_in_block +
          ( pulses_in_bit * unset_bit_length ) * ( bit_block_size - bits_set_in_block );
 }

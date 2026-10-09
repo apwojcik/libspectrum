@@ -42,8 +42,8 @@ typedef struct pzx_context {
 /* TODO: an extension to be similar to the TZX Custom Block Picture type */
 #define PZX_INLAY  "inly"
 
-static const char * const signature = PZX_HEADER;
-static const size_t signature_length = 4;
+static constexpr const char *signature = PZX_HEADER;
+static constexpr size_t signature_length = 4;
 
 static libspectrum_error
 read_block( libspectrum_tape *tape, const libspectrum_byte **buffer,

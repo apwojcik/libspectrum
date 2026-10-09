@@ -29,7 +29,7 @@
 #include "tape_block.h"
 
 /* The .csw file signature (first 23 bytes) */
-static const char * const csw_signature = "Compressed Square Wave\x1a";
+static constexpr const char *csw_signature = "Compressed Square Wave\x1a";
 
 libspectrum_error
 libspectrum_csw_read( libspectrum_tape *tape,

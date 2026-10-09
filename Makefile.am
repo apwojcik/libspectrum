@@ -120,31 +120,31 @@ AM_CFLAGS = -DLIBSPECTRUM_EXPORTS -fvisibility=hidden
 libspectrum.h: libspectrum.h.in generate.py snap_accessors.txt tape_accessors.txt config.h
 	$(AM_V_GEN)$(PYTHON3) $(srcdir)/generate.py $(srcdir) $(srcdir)/libspectrum.h.in > $@.tmp && mv $@.tmp $@
 
-snap_accessors.c: accessor.pl snap_accessors.txt
-	$(AM_V_GEN)$(PERL) $(srcdir)/accessor.pl $(srcdir)/snap_accessors.txt > $@.tmp && mv $@.tmp $@
+snap_accessors.c: accessor.py snap_accessors.txt
+	$(AM_V_GEN)$(PYTHON3) $(srcdir)/accessor.py $(srcdir)/snap_accessors.txt > $@.tmp && mv $@.tmp $@
 
-tape_accessors.c: tape_accessors.pl tape_accessors.txt
-	$(AM_V_GEN)$(PERL) $(srcdir)/tape_accessors.pl $(srcdir)/tape_accessors.txt > $@.tmp && mv $@.tmp $@
+tape_accessors.c: tape_accessors.py tape_accessors.txt
+	$(AM_V_GEN)$(PYTHON3) $(srcdir)/tape_accessors.py $(srcdir)/tape_accessors.txt > $@.tmp && mv $@.tmp $@
 
-tape_set.c: tape_set.pl tape_accessors.txt
-	$(AM_V_GEN)$(PERL) $(srcdir)/tape_set.pl $(srcdir)/tape_accessors.txt > $@.tmp && mv $@.tmp $@
+tape_set.c: tape_set.py tape_accessors.txt
+	$(AM_V_GEN)$(PYTHON3) $(srcdir)/tape_set.py $(srcdir)/tape_accessors.txt > $@.tmp && mv $@.tmp $@
 
 windres.o: windres.rc
 	$(AM_V_GEN)$(WINDRES) -I. $(srcdir)/windres.rc windres.o
 
 AM_CPPFLAGS = @GLIB_CFLAGS@ @WAV_BACKEND_CPPFLAGS@
 
-EXTRA_DIST = accessor.pl \
+EXTRA_DIST = accessor.py \
 	     buffer_license.txt \
 	     dll.c \
 	     generate.py \
 	     m4/audiofile.m4 \
 	     m4/ax_create_stdint_h.m4 \
 	     m4/pkg.m4 \
-	     tape_accessors.pl \
+	     tape_accessors.py \
 	     tape_accessors.txt \
 	     tape_block.h \
-	     tape_set.pl \
+	     tape_set.py \
 	     update-release.py \
 	     .agents/skills/README.md \
 	     .agents/skills/update-changelog/SKILL.md \

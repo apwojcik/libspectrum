@@ -16,8 +16,8 @@ matters (see "ABI/versioning" below).
 
 There are two build systems in this repo:
 
-- **Autotools** (primary, used by CI and releases): `autogen.sh` → `configure` → `make`. Needs `perl` (accessor/tape codegen, test fixtures) and `python3` (`generate.py`, the public-header generator) on `PATH`.
-- **CMake** (`CMakeLists.txt`, newer, library-only — no tests, no codegen for accessors/headers): builds the `spectrum` target directly from the checked-in sources. Use this for quick IDE-driven builds; use Autotools for anything release- or test-related.
+- **Autotools** (primary, used by CI and releases): `autogen.sh` → `configure` → `make`. Needs `perl` (test fixtures only) and `python3` (`generate.py`/`accessor.py`/`tape_accessors.py`/`tape_set.py` codegen) on `PATH`.
+- **CMake** (`CMakeLists.txt`, newer, library-only — no tests): builds the `spectrum` target directly from the checked-in sources, generating `libspectrum.h`/`snap_accessors.c`/`tape_accessors.c`/`tape_set.c` itself via the same Python scripts as Autotools. Use this for quick IDE-driven builds; use Autotools for anything release- or test-related.
 
 ### Autotools workflow
 
@@ -65,8 +65,8 @@ Report lands in `abi-out/`. See `doc/releasing.md` for full details and when to 
 Several core files are **generated at build time**, driven by plain-text spec files. Edit the spec/template, not the generated output:
 
 - `libspectrum.h` (the public header) is generated from `libspectrum.h.in` by `generate.py`, which also reads `config.h`'s `HAVE_*` defines directly to decide what to emit for stdint typedefs, the glib-replacement shim, gcrypt/zlib/bz2/wav capability macros, and the snap/tape accessor declarations (reading `snap_accessors.txt`/`tape_accessors.txt` itself — see below). This replaced an older two-stage Perl pipeline (`make-perl.c` compiled a probe that emitted Perl, concatenated with `generate.pl.in`, run under `perl -p`); `generate.py` is self-contained and needs no compiler.
-- `snap_accessors.c` is generated from `snap_accessors.txt` by `accessor.pl`. Each line in the `.txt` declares one field of `libspectrum_snap` (type, name, optional min/max range for validation) and produces a getter/setter pair.
-- `tape_accessors.c` / `tape_set.c` are generated from `tape_accessors.txt` by `tape_accessors.pl` / `tape_set.pl` similarly, for tape block fields.
+- `snap_accessors.c` is generated from `snap_accessors.txt` by `accessor.py`. Each line in the `.txt` declares one field of `libspectrum_snap` (type, name, optional array length, optional default value) and produces a getter/setter pair.
+- `tape_accessors.c` / `tape_set.c` are generated from `tape_accessors.txt` by `tape_accessors.py` / `tape_set.py` similarly, for tape block fields.
 
 When adding a new snapshot or tape-block field, add it to the relevant `.txt` file rather than writing accessors by hand — the pattern is declarative, not imperative.
 

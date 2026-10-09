@@ -41,7 +41,6 @@ option(USE_FAKE_GLIB "Use the bundled myglib/ GLib replacement instead of real G
 include(FetchContent)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
-find_package(Perl REQUIRED)
 
 # --- Feature detection for config.h -------------------------------------
 # Mirrors the autoconf checks in configure.ac; see cmake/config.h.cmake.in.
@@ -198,7 +197,7 @@ add_custom_command(
     VERBATIM)
 
 # snap_accessors.c / tape_accessors.c / tape_set.c are generated from the
-# *_accessors.txt spec files by the matching Perl script (see CLAUDE.md's
+# *_accessors.txt spec files by the matching Python script (see CLAUDE.md's
 # "Generated code" section); each field declared there becomes a getter/
 # setter pair that the rest of the library links against.
 function(generate_accessor_source OUTVAR SCRIPT TXTFILE)
@@ -206,7 +205,7 @@ function(generate_accessor_source OUTVAR SCRIPT TXTFILE)
     add_custom_command(
         OUTPUT ${outfile}
         COMMAND ${CMAKE_COMMAND}
-                -DPERL_EXECUTABLE=${PERL_EXECUTABLE}
+                -DPYTHON3_EXECUTABLE=${Python3_EXECUTABLE}
                 -DSCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/${SCRIPT}
                 -DTXTFILE=${CMAKE_CURRENT_SOURCE_DIR}/${TXTFILE}
                 -DOUTFILE=${outfile}
@@ -219,9 +218,9 @@ function(generate_accessor_source OUTVAR SCRIPT TXTFILE)
         VERBATIM)
 endfunction()
 
-generate_accessor_source(snap_accessors.c accessor.pl snap_accessors.txt)
-generate_accessor_source(tape_accessors.c tape_accessors.pl tape_accessors.txt)
-generate_accessor_source(tape_set.c tape_set.pl tape_accessors.txt)
+generate_accessor_source(snap_accessors.c accessor.py snap_accessors.txt)
+generate_accessor_source(tape_accessors.c tape_accessors.py tape_accessors.txt)
+generate_accessor_source(tape_set.c tape_set.py tape_accessors.txt)
 
 add_library(spectrum
     ${LIBSPECTRUM_H}

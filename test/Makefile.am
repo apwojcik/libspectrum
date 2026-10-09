@@ -59,9 +59,9 @@ test_test_DEPENDENCIES = libspectrum.la \
 			 test/wav-mono-threshold.wav \
 			 test/wav-stereo-mixdown.wav
 
-# check_DATA, not noinst_DATA: these are Perl-generated test fixtures, not
-# library sources, so a plain `make` (library build only) shouldn't need
-# Perl on PATH - only `make check` (which builds and runs test/test) should.
+# check_DATA, not noinst_DATA: these are generated test fixtures, not
+# library sources, so a plain `make` (library build only) doesn't need to
+# build them - only `make check` (which builds and runs test/test) does.
 check_DATA = test/complete-tzx.tzx \
 	     test/wav-mono-threshold.wav \
 	     test/wav-stereo-mixdown.wav
@@ -71,14 +71,14 @@ noinst_HEADERS += \
 	test/registry.h \
 	test/test.h
 
-test/complete-tzx.tzx: test/complete-tzx.pl
-	$(AM_V_GEN)$(PERL) $< > $@.tmp && mv $@.tmp $@
+test/complete-tzx.tzx: test/complete-tzx.py
+	$(AM_V_GEN)$(PYTHON3) $< > $@.tmp && mv $@.tmp $@
 
-test/wav-mono-threshold.wav: test/wav-fixtures.pl
-	$(AM_V_GEN)$(PERL) $< mono-threshold > $@.tmp && mv $@.tmp $@
+test/wav-mono-threshold.wav: test/wav-fixtures.py
+	$(AM_V_GEN)$(PYTHON3) $< mono-threshold > $@.tmp && mv $@.tmp $@
 
-test/wav-stereo-mixdown.wav: test/wav-fixtures.pl
-	$(AM_V_GEN)$(PERL) $< stereo-mixdown > $@.tmp && mv $@.tmp $@
+test/wav-stereo-mixdown.wav: test/wav-fixtures.py
+	$(AM_V_GEN)$(PYTHON3) $< stereo-mixdown > $@.tmp && mv $@.tmp $@
 
 if BUILD_TEST_ARCHIVE
 libspectrum-test.a: libspectrum.la
@@ -95,8 +95,8 @@ test_test_LDFLAGS = -static
 
 EXTRA_DIST += \
 	test/Makefile.am \
-	test/complete-tzx.pl \
-	test/wav-fixtures.pl \
+	test/complete-tzx.py \
+	test/wav-fixtures.py \
 	test/empty-drb.tzx \
 	test/empty.csw \
 	test/empty.szx \

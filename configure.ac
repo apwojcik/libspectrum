@@ -85,8 +85,6 @@ int main(void) { return 0; }
 )
 
 LT_INIT
-AC_PATH_PROG(PERL, perl)
-AC_SUBST(PERL)
 AC_PATH_PROG(PYTHON3, python3)
 AC_SUBST(PYTHON3)
 

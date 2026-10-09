@@ -16,7 +16,7 @@ matters (see "ABI/versioning" below).
 
 There are two build systems in this repo:
 
-- **Autotools** (primary, used by CI and releases): `autogen.sh` → `configure` → `make`. Needs `perl` (test fixtures only) and `python3` (`generate.py`/`accessor.py`/`tape_accessors.py`/`tape_set.py` codegen) on `PATH`.
+- **Autotools** (primary, used by CI and releases): `autogen.sh` → `configure` → `make`. Needs `python3` on `PATH` (`generate.py`/`accessor.py`/`tape_accessors.py`/`tape_set.py` codegen, plus `test/complete-tzx.py`/`test/wav-fixtures.py` test fixtures).
 - **CMake** (`CMakeLists.txt`, newer, library-only — no tests): builds the `spectrum` target directly from the checked-in sources, generating `libspectrum.h`/`snap_accessors.c`/`tape_accessors.c`/`tape_set.c` itself via the same Python scripts as Autotools. Use this for quick IDE-driven builds; use Autotools for anything release- or test-related.
 
 ### Autotools workflow

@@ -117,15 +117,8 @@ pkgconfig_DATA = libspectrum.pc
 
 AM_CFLAGS = -DLIBSPECTRUM_EXPORTS -fvisibility=hidden
 
-make-perl$(EXEEXT): $(srcdir)/make-perl.c config.h
-	$(AM_V_CC)$(CC_FOR_BUILD) -I. -o $@ $<
-
-libspectrum.h: libspectrum.h.in generate.pl snap_accessors.txt tape_accessors.txt config.h
-	$(AM_V_GEN)$(PERL) -p generate.pl $(srcdir) $(srcdir)/libspectrum.h.in > $@.tmp && mv $@.tmp $@
-
-generate.pl: make-perl$(EXEEXT) generate.pl.in
-	$(AM_V_GEN)./make-perl$(EXEEXT) > $@
-	$(AM_V_at)cat $(srcdir)/generate.pl.in >> $@
+libspectrum.h: libspectrum.h.in generate.py snap_accessors.txt tape_accessors.txt config.h
+	$(AM_V_GEN)$(PYTHON3) $(srcdir)/generate.py $(srcdir) $(srcdir)/libspectrum.h.in > $@.tmp && mv $@.tmp $@
 
 snap_accessors.c: accessor.pl snap_accessors.txt
 	$(AM_V_GEN)$(PERL) $(srcdir)/accessor.pl $(srcdir)/snap_accessors.txt > $@.tmp && mv $@.tmp $@
@@ -144,11 +137,10 @@ AM_CPPFLAGS = @GLIB_CFLAGS@ @WAV_BACKEND_CPPFLAGS@
 EXTRA_DIST = accessor.pl \
 	     buffer_license.txt \
 	     dll.c \
-	     generate.pl.in \
+	     generate.py \
 	     m4/audiofile.m4 \
 	     m4/ax_create_stdint_h.m4 \
 	     m4/pkg.m4 \
-	     make-perl.c \
 	     tape_accessors.pl \
 	     tape_accessors.txt \
 	     tape_block.h \
@@ -162,9 +154,7 @@ EXTRA_DIST = accessor.pl \
 CLEANFILES = libspectrum.h \
 	     snap_accessors.c \
 	     tape_accessors.c \
-	     tape_set.c \
-	     generate.pl \
-	     make-perl$(EXEEXT)
+	     tape_set.c
 
 include doc/Makefile.am
 include myglib/Makefile.am

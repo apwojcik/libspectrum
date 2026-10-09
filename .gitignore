@@ -14,11 +14,11 @@
 /configure
 cscope.out
 .DS_Store
+__pycache__/
 /depcomp
 .deps
 .dirstamp
 *.dSYM
-/generate.pl
 /install-sh
 .libs
 /libspectrum.h
@@ -35,8 +35,6 @@ cscope.out
 /m4/ltversion.m4
 /Makefile
 /Makefile.in
-/make-perl
-/make-perl.exe
 /missing
 /mkinstalldirs
 *.o
@@ -65,3 +63,6 @@ cscope.out
 .dolt/
 *.db
 .beads/
+.idea/
+build/
+build*/

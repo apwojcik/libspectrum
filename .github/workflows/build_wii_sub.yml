@@ -96,7 +96,7 @@ jobs:
           echo "Using devkitpro/devkitppc image"
           sudo apt-get update
           sudo apt-get -y install --no-install-recommends \
-            wget tar autoconf automake libtool && \
+            wget tar autoconf automake libtool python3 && \
           sudo rm -rf /var/lib/apt/lists/*
           echo "Done."
 

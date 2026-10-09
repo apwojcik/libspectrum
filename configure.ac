@@ -81,19 +81,11 @@ int main(void) { return 0; }
   [AC_MSG_FAILURE([a compiler with support for C11 or later is required])]
 )
 
-dnl Setup for compiling build tools (make-perl)
-if test $cross_compiling = yes; then
-  AC_CHECK_PROGS(CC_FOR_BUILD, gcc cc)
-else
-  CC_FOR_BUILD=$CC
-fi
-AC_MSG_CHECKING([for a C compiler for build tools])
-AC_MSG_RESULT([$CC_FOR_BUILD])
-AC_SUBST(CC_FOR_BUILD)
-
 LT_INIT
 AC_PATH_PROG(PERL, perl)
 AC_SUBST(PERL)
+AC_PATH_PROG(PYTHON3, python3)
+AC_SUBST(PYTHON3)
 
 dnl Checks for header files.
 AC_CHECK_HEADERS(stdint.h strings.h unistd.h)

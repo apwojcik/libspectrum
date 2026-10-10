@@ -33,10 +33,18 @@ endif()
 
 option(BUILD_SHARED_LIBS "Build libspectrum shared library" ON)
 option(WAV_SUPPORT "Enable WAV audio files" ON)
-option(ZLIB_SUPPORT "Use zlib for compressed snapshot support" ON)
-option(BZIP2_SUPPORT "Use libbz2 for bzip2-compressed file support" ON)
 option(LIBGCRYPT_SUPPORT "Use libgcrypt for RZX signing/verification" ON)
 option(USE_FAKE_GLIB "Use the bundled myglib/ GLib replacement instead of real GLib" ${WIN32})
+
+if (WIN32)
+    option(LIBSPECTRUM_USE_MSVC_STATIC_RUNTIME "Link MSVC runtime library statically" ON)
+    if (NOT LIBSPECTRUM_USE_MSVC_STATIC_RUNTIME)
+        set(LIBSPECTRUM_MSVC_RUNTIME_SUFFIX "DLL")
+    endif ()
+    if (NOT CMAKE_MSVC_RUNTIME_LIBRARY)
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>${LIBSPECTRUM_MSVC_RUNTIME_SUFFIX}")
+    endif ()
+endif ()
 
 include(FetchContent)
 include(GNUInstallDirs)
@@ -64,31 +72,39 @@ check_symbol_exists(_stricmp "string.h" HAVE__STRICMP)
 check_symbol_exists(strncasecmp "string.h;strings.h" HAVE_STRNCASECMP)
 check_symbol_exists(_strnicmp "string.h" HAVE__STRNICMP)
 
-set(LIBSPECTRUM_OPTIONAL_LIBS "")
+find_package(ZLIB QUIET)
+if(NOT ZLIB_FOUND)
+    FetchContent_Declare(
+            zlib
+            URL https://github.com/madler/zlib/releases/download/v1.3.2/zlib132.zip
+            URL_HASH SHA256=e8bf55f3017aa181690990cb58a994e77885da140609fc8f94abe9b65d2cae28
+            DOWNLOAD_NO_PROGRESS TRUE
+            SYSTEM
+            EXCLUDE_FROM_ALL)
 
-# zlib: optional, enables zip.c/zlib.c (compressed szx snapshots etc. -
-# these two files are zlib-only and #include <zlib.h> unconditionally, so
-# they're only added to the library below when zlib is actually found).
-if(ZLIB_SUPPORT)
-    find_package(ZLIB QUIET)
-    if(ZLIB_FOUND)
-        set(HAVE_ZLIB_H TRUE)
-        list(APPEND LIBSPECTRUM_OPTIONAL_LIBS ZLIB::ZLIB)
-    else()
-        message(STATUS "zlib not found, building without zlib support")
-    endif()
+    set(CACHE{ZLIB_BUILD_EXAMPLES} TYPE BOOL FORCE VALUE OFF)
+
+    FetchContent_MakeAvailable(zlib)
 endif()
 
-# bzip2: optional; bzip2.c is always compiled and self-guards internally
-# on HAVE_LIBBZ2, so no source-list change is needed here.
-if(BZIP2_SUPPORT)
-    find_package(BZip2 QUIET)
-    if(BZIP2_FOUND)
-        set(HAVE_LIBBZ2 TRUE)
-        list(APPEND LIBSPECTRUM_OPTIONAL_LIBS BZip2::BZip2)
-    else()
-        message(STATUS "libbz2 not found, building without bzip2 support")
-    endif()
+find_package(bip2 CONFIG QUIET)
+if(NOT bzip2_FOUND)
+    FetchContent_Declare(
+            bzip2
+            GIT_REPOSITORY https://github.com/apwojcik/bzip2.git
+            GIT_TAG master
+            GIT_PROGRESS FALSE
+            GIT_SHALLOW TRUE
+            SYSTEM
+            EXCLUDE_FROM_ALL)
+
+    set(CACHE{ENABLE_DOCS} TYPE BOOL FORCE VALUE OFF)
+    set(CACHE{ENABLE_EXAMPLES} TYPE BOOL FORCE VALUE OFF)
+    set(CACHE{ENABLE_STATIC_LIB} TYPE BOOL FORCE VALUE ON)
+    set(CACHE{ENABLE_STATIC_LIB_IS_PIC} TYPE BOOL FORCE VALUE ON)
+    set(CACHE{ENABLE_TESTS} TYPE BOOL FORCE VALUE OFF)
+
+    FetchContent_MakeAvailable(bzip2)
 endif()
 
 # libgcrypt: optional; crypto.c is always compiled and self-guards on
@@ -268,6 +284,9 @@ add_library(spectrum
     warajevo_read.c
     z80.c
     z80em.c
+    zip.c
+    zip.h
+    zlib.c
     zxs.c)
 
 if(APPLE)
@@ -279,6 +298,7 @@ endif()
 target_include_directories(spectrum PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
 # myglib/*.c quote-include "internals.h" etc. from the project root; files
 # living at the root resolve that via the including file's own directory,
 # but myglib/ needs the root on the search path explicitly.
@@ -292,11 +312,8 @@ if(HAVE_GCRYPT_H)
     target_include_directories(spectrum PRIVATE ${GCRYPT_INCLUDE_DIR})
 endif()
 
-target_link_libraries(spectrum PRIVATE ${LIBSPECTRUM_OPTIONAL_LIBS})
-
-if(HAVE_ZLIB_H)
-    target_sources(spectrum PRIVATE zip.c zlib.c)
-endif()
+target_link_libraries(spectrum PRIVATE ZLIB::ZLIBSTATIC
+        bzip2::bz2_static ${LIBSPECTRUM_OPTIONAL_LIBS})
 
 if(HAVE_WAV_BACKEND)
     target_sources(spectrum PRIVATE wav.c wav_internals.h)

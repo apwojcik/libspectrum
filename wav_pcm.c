@@ -21,24 +21,8 @@
 #include <string.h>
 
 #include "internals.h"
+#include "wav_format.h"
 #include "wav_internals.h"
-
-#define WAV_SIGNATURE_RIFF "RIFF"
-#define WAV_SIGNATURE_WAVE "WAVE"
-#define WAV_CHUNK_FORMAT "fmt "
-#define WAV_CHUNK_DATA "data"
-
-enum {
-  WAV_CHUNK_ID_SIZE = 4,
-  WAV_CHUNK_HEADER_SIZE = 8,
-  WAV_RIFF_HEADER_SIZE = 12,
-  WAV_PCM_FORMAT_SIZE = 16,
-  WAV_FORMAT_EX_SIZE = 18,       /* Base format plus cbSize. */
-  WAV_EXTENSIBLE_EXTRA_SIZE = 22,
-  WAV_EXTENSIBLE_FORMAT_SIZE = WAV_FORMAT_EX_SIZE + WAV_EXTENSIBLE_EXTRA_SIZE,
-  WAV_FORMAT_PCM = 0x0001,
-  WAV_FORMAT_EXTENSIBLE = 0xfffe
-};
 
 struct libspectrum_wav_reader {
   FILE *file;

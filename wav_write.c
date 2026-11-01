@@ -24,17 +24,9 @@
 #endif
 
 #include "internals.h"
+#include "wav_format.h"
 
-enum {
-  WAV_CHUNK_ID_SIZE = 4,
-  WAV_CHUNK_HEADER_SIZE = 8,
-  WAV_HEADER_SIZE = 44,
-  WAV_RIFF_OVERHEAD = WAV_HEADER_SIZE - WAV_CHUNK_HEADER_SIZE,
-  WAV_FMT_CHUNK_SIZE = 16,
-  WAV_FORMAT_PCM = 1,
-  WAV_NUM_CHANNELS = 1,
-  WAV_BITS_PER_BYTE = 8
-};
+enum { WAV_NUM_CHANNELS = 1 };
 
 struct libspectrum_wav_writer {
   FILE *file;
@@ -148,19 +140,21 @@ libspectrum_wav_writer_open( libspectrum_wav_writer **writer,
   state->remaining = frames;
   state->bytes = bytes;
   state->padding = size & 1;
-  memcpy( ptr, "RIFF", WAV_CHUNK_ID_SIZE );
+  memcpy( ptr, WAV_SIGNATURE_RIFF, WAV_CHUNK_ID_SIZE );
   ptr += WAV_CHUNK_ID_SIZE;
   libspectrum_write_dword( &ptr, WAV_RIFF_OVERHEAD + size + state->padding );
-  memcpy( ptr, "WAVEfmt ", 2 * WAV_CHUNK_ID_SIZE );
-  ptr += 2 * WAV_CHUNK_ID_SIZE;
-  libspectrum_write_dword( &ptr, WAV_FMT_CHUNK_SIZE );
+  memcpy( ptr, WAV_SIGNATURE_WAVE, WAV_CHUNK_ID_SIZE );
+  ptr += WAV_CHUNK_ID_SIZE;
+  memcpy( ptr, WAV_CHUNK_FORMAT, WAV_CHUNK_ID_SIZE );
+  ptr += WAV_CHUNK_ID_SIZE;
+  libspectrum_write_dword( &ptr, WAV_PCM_FORMAT_SIZE );
   libspectrum_write_word( &ptr, WAV_FORMAT_PCM );
   libspectrum_write_word( &ptr, WAV_NUM_CHANNELS );
   libspectrum_write_dword( &ptr, rate );
   libspectrum_write_dword( &ptr, rate * bytes );
   libspectrum_write_word( &ptr, bytes );
   libspectrum_write_word( &ptr, bytes * WAV_BITS_PER_BYTE );
-  memcpy( ptr, "data", WAV_CHUNK_ID_SIZE );
+  memcpy( ptr, WAV_CHUNK_DATA, WAV_CHUNK_ID_SIZE );
   ptr += WAV_CHUNK_ID_SIZE;
   libspectrum_write_dword( &ptr, size );
   state->error = wav_write_all( state, header, sizeof( header ),

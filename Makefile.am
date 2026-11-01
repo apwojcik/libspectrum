@@ -104,6 +104,7 @@ nodist_include_HEADERS = libspectrum.h
 noinst_HEADERS = internals.h \
 			 pzx_internals.h \
 			 pzx_write_internal.h \
+			 wav_format.h \
 			 wav_internals.h \
 			 zip.h
 

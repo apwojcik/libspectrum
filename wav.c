@@ -33,7 +33,7 @@
 libspectrum_error
 libspectrum_wav_read( libspectrum_tape *tape, const char *filename )
 {
-  libspectrum_wav_reader *reader = NULL;
+  internal_wav_reader *reader = NULL;
   libspectrum_signed_word *buffer = NULL;
   libspectrum_buffer *pulses = NULL;
   libspectrum_tape_block *block = NULL;

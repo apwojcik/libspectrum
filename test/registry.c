@@ -149,6 +149,7 @@ test_description tests[] = {
   TEST_ENTRY( tape_peek_next_block, "Tape peek next block" ),
   TEST_ENTRY( read_tzx_raw_block_edge_handling, "Read TZX RAW block edge handling" ),
   TEST_ENTRY( trailing_pause_block_tzx_file, "Trailing pause block TZX file" ),
+  TEST_ENTRY( write_pcm_wav, "Public PCM WAV writer and round trips" ),
   TEST_ENTRY( read_portable_wav_formats, "Portable WAV PCM formats and malformed chunks" ),
   TEST_ENTRY( read_wav_exact_sample_timing, "WAV playback carries fractional sample timing across long runs" ),
   TEST_ENTRY( read_mono_wav_threshold_fixture, "Read mono WAV threshold fixture" ),

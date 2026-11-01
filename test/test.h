@@ -71,6 +71,7 @@ typedef enum test_return_t {
 } test_return_t;
 
 test_return_t read_portable_wav_formats( void );
+test_return_t write_pcm_wav( void );
 
 typedef struct test_edge_sequence_t {
 

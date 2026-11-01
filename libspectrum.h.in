@@ -112,6 +112,46 @@ LIBSPECTRUM_CAPABILITIES
 /* Initialisation */
 
 LIBSPECTRUM_API libspectrum_error libspectrum_init( void );
+
+/* Raw PCM WAV I/O. Readers return signed 16-bit mono without resampling;
+   channels are quantized then averaged equally (truncating toward zero).
+   Writers accept unsigned bytes or native-endian signed words and emit LE PCM.
+   Open failure leaves the output handle NULL; successful handles belong to the
+   caller until close, which releases them even on error. See doc/libspectrum.txt
+   for supported formats, quantization and full I/O/error semantics. */
+#define LIBSPECTRUM_SUPPORTS_WAV_PCM_IO 1
+
+typedef struct libspectrum_wav_reader libspectrum_wav_reader;
+typedef struct libspectrum_wav_writer libspectrum_wav_writer;
+
+typedef enum libspectrum_wav_sample_format {
+  LIBSPECTRUM_WAV_SAMPLE_UNSIGNED_8,
+  LIBSPECTRUM_WAV_SAMPLE_SIGNED_16
+} libspectrum_wav_sample_format;
+
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_reader_open( libspectrum_wav_reader **reader,
+  const char *filename, size_t *sample_rate, size_t *frame_count );
+/* EOF is success with a short read; declared-data truncation is an error.
+   frames_read counts complete output frames, even when returning an error. */
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_reader_read( libspectrum_wav_reader *reader,
+  libspectrum_signed_word *samples, size_t frames, size_t *frames_read );
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_reader_close( libspectrum_wav_reader *reader );
+/* Exact frame_count is required. filename == NULL selects stdout (never
+   closed); no seeking is needed. Classic RIFF size limits include padding. */
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_writer_open( libspectrum_wav_writer **writer,
+  const char *filename, size_t sample_rate, libspectrum_wav_sample_format format,
+  size_t frame_count );
+/* All frames are accepted or an error returned. After failure, only close
+   is supported. Close checks missing frames, padding and output/flush errors. */
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_writer_write( libspectrum_wav_writer *writer,
+  const void *samples, size_t frames );
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_writer_close( libspectrum_wav_writer *writer );
 LIBSPECTRUM_API void libspectrum_end( void );
 
 /* Version checking */

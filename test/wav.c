@@ -15,11 +15,14 @@
 
 #include <stdio.h>
 #include <string.h>
+#ifndef _WIN32
+#include <unistd.h>
+#include <fcntl.h>
+#endif
 
 #include "test.h"
 #include "wav_internals.h"
 
-#ifdef WAV_INTERNAL_PCM
 static void
 put32( unsigned char *p, unsigned long n )
 {
@@ -81,34 +84,30 @@ try_fixture( const unsigned char *p, size_t size,
   ok = fwrite( p, 1, size, file ) == size;
   if( fclose( file ) ) ok = 0;
   if( !ok ) { remove( name ); return 0; }
-  error = internal_wav_open( &reader, name, &rate, &count );
+  error = libspectrum_wav_reader_open( &reader, name, &rate, &count );
   ok = error == expected_error;
   if( !ok )
     fprintf( stderr, "WAV fixture: expected error %d, got %d\n",
              (int)expected_error, (int)error );
   if( !expected_error && !error ) {
     ok = rate == 12345 && count == ( empty ? 0 : 3 );
-    if( internal_wav_read( reader, samples, 1, &got ) ||
+    if( libspectrum_wav_reader_read( reader, samples, 1, &got ) ||
         got != ( empty ? 0 : 1 ) ) ok = 0;
     if( !empty && samples[0] != -32768 ) ok = 0;
-    if( internal_wav_read( reader, samples, 4, &got ) ||
+    if( libspectrum_wav_reader_read( reader, samples, 4, &got ) ||
         got != ( empty ? 0 : 2 ) ) ok = 0;
     if( !empty && ( samples[0] != 0 ||
         samples[1] != ( bytes == 1 ? 32512 : 16384 ) ) ) ok = 0;
-    if( internal_wav_read( reader, samples, 1, &got ) || got ) ok = 0;
+    if( libspectrum_wav_reader_read( reader, samples, 1, &got ) || got ) ok = 0;
   }
-  internal_wav_close( reader );
+  if( libspectrum_wav_reader_close( reader ) ) ok = 0;
   remove( name );
   return ok;
 }
-#endif
 
 test_return_t
 read_portable_wav_formats( void )
 {
-#ifndef WAV_INTERNAL_PCM
-  return TEST_SKIPPED;
-#else
   unsigned char p[256];
   unsigned bytes, channels, ext, mutation;
   size_t size, f, cut;
@@ -204,5 +203,176 @@ read_portable_wav_formats( void )
   put32( p + 4, size - 8 ); put32( p + 26, 0 );
   if( !try_fixture( p, size, LIBSPECTRUM_ERROR_NONE, 1, 2 ) ) return TEST_FAIL;
   return TEST_PASS;
+}
+
+/* A pipe proves stdout output does not depend on seeking. Restore stdout
+   before returning so test diagnostics cannot corrupt the captured bytes. */
+static int
+wav_stdout_test( void )
+{
+#ifdef _WIN32
+  return 1; /* Descriptor redirection below is POSIX-only. */
+#else
+  int fds[2], saved, ok = 1;
+  unsigned char bytes[48], sample = 128;
+  ssize_t count;
+  libspectrum_wav_writer *writer = NULL;
+  if( fflush( stdout ) || pipe( fds ) ) return 0;
+  saved = dup( STDOUT_FILENO );
+  if( saved < 0 ) { close( fds[0] ); close( fds[1] ); return 0; }
+  if( dup2( fds[1], STDOUT_FILENO ) < 0 ) {
+    close( saved ); close( fds[0] ); close( fds[1] ); return 0;
+  }
+  close( fds[1] );
+  if( libspectrum_wav_writer_open( &writer, NULL, 8000,
+        LIBSPECTRUM_WAV_SAMPLE_UNSIGNED_8, 1 ) ) ok = 0;
+  if( ok && libspectrum_wav_writer_write( writer, &sample, 1 ) ) ok = 0;
+  if( libspectrum_wav_writer_close( writer ) ) ok = 0;
+  /* Writer must not have closed stdout. */
+  {
+    int fd = dup( STDOUT_FILENO );
+    if( fd < 0 ) ok = 0;
+    else close( fd );
+  }
+  if( dup2( saved, STDOUT_FILENO ) < 0 ) ok = 0;
+  close( saved );
+  count = read( fds[0], bytes, sizeof( bytes ) );
+  close( fds[0] );
+  if( count != 46 || memcmp( bytes, "RIFF", 4 ) ||
+      bytes[4] != 38 || bytes[40] != 1 || bytes[44] != 128 || bytes[45] )
+    ok = 0;
+  /* A read-only descriptor forces output failure without SIGPIPE. The
+     failure may surface at open, write, or the final stdout flush. */
+  if( pipe( fds ) ) return 0;
+  saved = dup( STDOUT_FILENO );
+  if( saved < 0 ) { close( fds[0] ); close( fds[1] ); return 0; }
+  if( dup2( fds[0], STDOUT_FILENO ) < 0 ) {
+    close( saved ); close( fds[0] ); close( fds[1] ); return 0;
+  }
+  close( fds[0] ); close( fds[1] );
+  {
+    libspectrum_error error = libspectrum_wav_writer_open( &writer, NULL,
+      8000, LIBSPECTRUM_WAV_SAMPLE_UNSIGNED_8, 1 );
+    if( !error ) {
+      libspectrum_error write_error =
+        libspectrum_wav_writer_write( writer, &sample, 1 );
+      libspectrum_error close_error = libspectrum_wav_writer_close( writer );
+      if( ( write_error && write_error != LIBSPECTRUM_ERROR_UNKNOWN ) ||
+          close_error != LIBSPECTRUM_ERROR_UNKNOWN ) ok = 0;
+    } else if( error != LIBSPECTRUM_ERROR_UNKNOWN || writer ) ok = 0;
+  }
+  /* Some stdio implementations retain buffered bytes after failed flush.
+     Discard them through /dev/null before restoring the test log. */
+  {
+    int sink = open( "/dev/null", O_WRONLY );
+    if( sink < 0 ) ok = 0;
+    else {
+      if( dup2( sink, STDOUT_FILENO ) < 0 ) ok = 0;
+      clearerr( stdout );
+      if( fflush( stdout ) ) ok = 0;
+      close( sink );
+    }
+  }
+  if( dup2( saved, STDOUT_FILENO ) < 0 ) ok = 0;
+  close( saved );
+  clearerr( stdout );
+  /* /dev/full is available on Linux, but not required by other hosts. */
+  if( access( "/dev/full", W_OK ) == 0 ) {
+    libspectrum_error error = libspectrum_wav_writer_open( &writer,
+      "/dev/full", 8000, LIBSPECTRUM_WAV_SAMPLE_UNSIGNED_8, 0 );
+    if( !error ) {
+      if( libspectrum_wav_writer_close( writer ) != LIBSPECTRUM_ERROR_UNKNOWN )
+        ok = 0;
+    } else if( error != LIBSPECTRUM_ERROR_UNKNOWN || writer ) ok = 0;
+  }
+  return ok;
 #endif
+}
+
+/* Byte-level output checks, public-reader round trips and failure states. */
+test_return_t
+write_pcm_wav( void )
+{
+  const char *name = "test-wav-writer.tmp";
+  libspectrum_wav_writer *writer = NULL;
+  libspectrum_wav_reader *reader = NULL;
+  libspectrum_signed_word input[3] = { -32768, 0, 32767 }, output[4];
+  unsigned char u8[3] = { 0, 128, 255 }, actual[64], expected[50];
+  size_t rate, count, got, n;
+  unsigned format, frames;
+  FILE *file;
+  int ok = wav_stdout_test();
+
+  for( format = 0; format < 2; format++ ) {
+    for( frames = 0; frames <= 3; frames++ ) {
+      unsigned bytes = format + 1, size = frames * bytes;
+      n = 44 + size + ( size & 1 );
+      if( libspectrum_wav_writer_open( &writer, name, 12345,
+            (libspectrum_wav_sample_format)format, frames ) ) return TEST_FAIL;
+      /* Exercise incremental writes as well as the empty-output case. */
+      if( frames ) {
+        if( libspectrum_wav_writer_write( writer,
+              format ? (void *)input : u8, 1 ) ) ok = 0;
+        if( libspectrum_wav_writer_write( writer,
+              format ? (void *)( input + 1 ) : u8 + 1, frames - 1 ) ) ok = 0;
+      } else if( libspectrum_wav_writer_write( writer, NULL, 0 ) ) ok = 0;
+      if( libspectrum_wav_writer_close( writer ) ) ok = 0;
+      file = fopen( name, "rb" );
+      if( !file ) return TEST_FAIL;
+      got = fread( actual, 1, sizeof( actual ), file );
+      if( fclose( file ) ) ok = 0;
+      memset( expected, 0, sizeof( expected ) );
+      memcpy( expected, "RIFF", 4 ); put32( expected + 4, n - 8 );
+      memcpy( expected + 8, "WAVEfmt ", 8 ); put32( expected + 16, 16 );
+      put16( expected + 20, 1 ); put16( expected + 22, 1 );
+      put32( expected + 24, 12345 ); put32( expected + 28, 12345 * bytes );
+      put16( expected + 32, bytes ); put16( expected + 34, bytes * 8 );
+      memcpy( expected + 36, "data", 4 ); put32( expected + 40, size );
+      if( format ) {
+        unsigned i;
+        for( i = 0; i < frames; i++ )
+          put16( expected + 44 + 2 * i, (libspectrum_word)input[i] );
+      } else memcpy( expected + 44, u8, frames );
+      if( got != n || memcmp( expected, actual, n ) ) ok = 0;
+      if( libspectrum_wav_reader_open( &reader, name, &rate, &count ) )
+        return TEST_FAIL;
+      if( rate != 12345 || count != frames ||
+          libspectrum_wav_reader_read( reader, output, 4, &got ) ||
+          got != frames ) ok = 0;
+      if( frames && output[0] != -32768 ) ok = 0;
+      if( frames > 1 && output[1] != 0 ) ok = 0;
+      if( frames > 2 && output[2] != ( format ? 32767 : 32512 ) ) ok = 0;
+      if( libspectrum_wav_reader_close( reader ) ) ok = 0;
+    }
+  }
+  if( libspectrum_wav_writer_open( &writer, name, 1,
+        LIBSPECTRUM_WAV_SAMPLE_UNSIGNED_8, 1 ) ) return TEST_FAIL;
+  if( libspectrum_wav_writer_write( writer, u8, 2 ) !=
+        LIBSPECTRUM_ERROR_INVALID ||
+      libspectrum_wav_writer_write( writer, u8, 1 ) !=
+        LIBSPECTRUM_ERROR_INVALID ) ok = 0;
+  if( libspectrum_wav_writer_close( writer ) != LIBSPECTRUM_ERROR_INVALID )
+    ok = 0;
+  if( libspectrum_wav_writer_open( &writer, name, 1,
+        LIBSPECTRUM_WAV_SAMPLE_SIGNED_16, 2 ) ) return TEST_FAIL;
+  if( libspectrum_wav_writer_close( writer ) != LIBSPECTRUM_ERROR_INVALID )
+    ok = 0;
+  if( !libspectrum_wav_writer_open( &writer, name, 1,
+        LIBSPECTRUM_WAV_SAMPLE_SIGNED_16, (size_t)-1 ) || writer ) ok = 0;
+  if( !libspectrum_wav_writer_open( &writer, name, (size_t)-1,
+        LIBSPECTRUM_WAV_SAMPLE_SIGNED_16, 0 ) || writer ) ok = 0;
+  if( !libspectrum_wav_writer_open( &writer, name, 1,
+        (libspectrum_wav_sample_format)99, 0 ) || writer ) ok = 0;
+  /* UINT32_MAX - 36 is odd: its required padding also overflows RIFF. */
+  if( sizeof( size_t ) >= 4 &&
+      ( !libspectrum_wav_writer_open( &writer, name, 1,
+          LIBSPECTRUM_WAV_SAMPLE_UNSIGNED_8, (size_t)0xffffffdbUL ) || writer ) )
+    ok = 0;
+  remove( name );
+  if( libspectrum_wav_writer_open( &writer, "test-wav-no-directory/output.wav",
+        8000, LIBSPECTRUM_WAV_SAMPLE_UNSIGNED_8, 0 ) !=
+      LIBSPECTRUM_ERROR_UNKNOWN || writer ) ok = 0;
+  if( !libspectrum_wav_reader_open( &reader, NULL, &rate, &count ) || reader )
+    ok = 0;
+  return ok ? TEST_PASS : TEST_FAIL;
 }

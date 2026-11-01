@@ -224,7 +224,7 @@ wav_prepare_data( FILE *file, const struct wav_info *info )
 }
 
 libspectrum_error
-internal_wav_open( libspectrum_wav_reader **reader, const char *filename,
+libspectrum_wav_reader_open( libspectrum_wav_reader **reader, const char *filename,
                    size_t *sample_rate, size_t *frame_count )
 {
   FILE *file;
@@ -233,7 +233,10 @@ internal_wav_open( libspectrum_wav_reader **reader, const char *filename,
   libspectrum_wav_reader *state;
   libspectrum_error error;
 
+  if( !reader ) return LIBSPECTRUM_ERROR_INVALID;
   *reader = NULL;
+  if( !filename || !sample_rate || !frame_count )
+    return LIBSPECTRUM_ERROR_INVALID;
   file = fopen( filename, "rb" );
   if( !file ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_LOGIC, "WAV: %s: %s",
@@ -302,13 +305,15 @@ wav_read_frame( libspectrum_wav_reader *reader,
 }
 
 libspectrum_error
-internal_wav_read( libspectrum_wav_reader *reader,
+libspectrum_wav_reader_read( libspectrum_wav_reader *reader,
                    libspectrum_signed_word *buffer, size_t frames,
                    size_t *frames_read )
 {
   libspectrum_error error;
 
+  if( !frames_read ) return LIBSPECTRUM_ERROR_INVALID;
   *frames_read = 0;
+  if( !reader || ( frames && !buffer ) ) return LIBSPECTRUM_ERROR_INVALID;
   if( frames > reader->remaining ) frames = reader->remaining;
   for( size_t i = 0; i < frames; i++ ) {
     error = wav_read_frame( reader, buffer + i );
@@ -319,12 +324,35 @@ internal_wav_read( libspectrum_wav_reader *reader,
   return LIBSPECTRUM_ERROR_NONE;
 }
 
+libspectrum_error
+libspectrum_wav_reader_close( libspectrum_wav_reader *reader )
+{
+  int failed;
+  if( !reader ) return LIBSPECTRUM_ERROR_NONE;
+  failed = fclose( reader->file );
+  libspectrum_free( reader );
+  return failed ? wav_error( LIBSPECTRUM_ERROR_UNKNOWN,
+                             "failed to close input" ) : LIBSPECTRUM_ERROR_NONE;
+}
+
+#ifdef WAV_INTERNAL_PCM
+libspectrum_error
+internal_wav_open( libspectrum_wav_reader **reader, const char *filename,
+                   size_t *rate, size_t *count )
+{
+  return libspectrum_wav_reader_open( reader, filename, rate, count );
+}
+
+libspectrum_error
+internal_wav_read( libspectrum_wav_reader *reader,
+                   libspectrum_signed_word *samples, size_t frames, size_t *got )
+{
+  return libspectrum_wav_reader_read( reader, samples, frames, got );
+}
+
 void
 internal_wav_close( libspectrum_wav_reader *reader )
 {
-  if( !reader ) return;
-  if( fclose( reader->file ) )
-    libspectrum_print_error( LIBSPECTRUM_ERROR_UNKNOWN,
-                            "WAV: failed to close file: %s", strerror( errno ) );
-  libspectrum_free( reader );
+  libspectrum_wav_reader_close( reader );
 }
+#endif

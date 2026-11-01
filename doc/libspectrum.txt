@@ -50,6 +50,77 @@ and non-zero in every build.
 LIBSPECTRUM_SUPPORTS_AUDIOFILE is a deprecated compatibility alias;
 use LIBSPECTRUM_SUPPORTS_WAV.
 
+Raw PCM WAV I/O
+===============
+
+LIBSPECTRUM_SUPPORTS_WAV_PCM_IO is defined as 1 when the public raw WAV
+reader/writer API is available. Consumers should test this feature macro
+(and check for libspectrum_wav_writer_open when configuring linkage), rather
+than relying on LIBSPECTRUM_SUPPORTS_WAV, which predates this API.
+
+libspectrum_wav_reader_open(&reader, filename, &sample_rate, &frame_count)
+opens a seekable file and returns its original integer sample rate and mono
+output frame count. filename must not be NULL. The public reader uses the
+portable PCM decoder on every platform, independently of --with-wav-backend.
+It supports little-endian RIFF/WAVE integer PCM: unsigned 8-bit and signed
+16/24/32-bit, any nonzero channel count. Extensible PCM is supported only with
+the PCM GUID and full-width valid bits; channel masks are ignored. Float,
+compressed audio, RIFX and RF64 are not supported. Unknown chunks (including
+metadata) and even-boundary chunk padding are handled. Duplicate fmt/data
+chunks, partial frames and declared chunks outside the file are rejected.
+Empty audio is valid here (but remains invalid for WAV-to-tape loading).
+Seeking uses C long offsets, so large files can exceed the host seek range.
+
+libspectrum_wav_reader_read(reader, samples, frames, &frames_read) returns
+native signed 16-bit mono values without resampling. Unsigned 8-bit values
+are centred at 128 and multiplied by 256. Signed 24/32-bit values are reduced
+to their high 16 bits (floor toward negative infinity). Each channel is
+quantized first, then channels are averaged equally, truncating toward zero.
+There is no dithering, channel weighting or normalization. The caller owns
+the sample buffer and must provide space for frames values. EOF is success
+with a short read, including zero frames on subsequent calls. Truncated
+or malformed declared audio is an error, not EOF. frames_read is initialized
+to zero and counts completed frames even on a decoding error; after an I/O
+error close the handle rather than retrying.
+
+libspectrum_wav_writer_open(&writer, filename, sample_rate, format, frame_count)
+outputs mono unsigned 8-bit (LIBSPECTRUM_WAV_SAMPLE_UNSIGNED_8) or signed
+16-bit (LIBSPECTRUM_WAV_SAMPLE_SIGNED_16) PCM. The exact frame count must be
+known up front. The sample and byte rates must fit the WAV header, and the
+RIFF length, including the data pad byte, must fit an unsigned 32-bit integer.
+No RF64 or unknown-length output is provided. A non-NULL filename is opened
+in binary write mode; NULL selects stdout. Output need not be seekable.
+On Windows stdout is switched to binary mode and its previous mode restored
+on close. The caller must serialize access to stdout while a writer uses it.
+The library does not reject terminals or change the process SIGPIPE policy.
+
+libspectrum_wav_writer_write(writer, samples, frames) accepts caller-owned
+unsigned bytes or native-endian libspectrum_signed_word values, according to
+the selected format; output is always little-endian. It accepts all requested
+frames or returns an error (a failed write may already have emitted bytes).
+Writing beyond the declared count is an error. After any write failure only
+close is supported, not retry. A zero-frame write may use a NULL buffer.
+
+Both opens leave the output handle NULL on failure. All non-handle output
+pointers are required; sample buffers may be NULL only for zero-frame calls.
+All functions return LIBSPECTRUM_ERROR_NONE on success; unsupported encodings
+return UNKNOWN, malformed input CORRUPT, and invalid API arguments INVALID.
+Writer I/O failures return UNKNOWN; missing frames at close return INVALID.
+Reader stream/seek failures return LOGIC or UNKNOWN. The usual libspectrum
+allocator policy applies. Metadata outputs from a failed open must not be used.
+
+libspectrum_wav_reader_close(reader) and libspectrum_wav_writer_close(writer)
+always release the handle, even on failure; NULL close is a successful no-op.
+The library owns opened files but never closes stdout. Writer close detects
+missing frames, emits required zero padding on complete output, closes owned
+files or flushes stdout, and reports output/flush errors. Failed output is
+not removed. Close must be checked: successful writes can still fail during
+buffer flushing. Never use a handle after close.
+
+Existing WAV-to-tape loading still uses the configured backend. The optional
+macOS backend uses Core Audio conversion, so its accepted encodings and
+quantization need not match the public reader. It is not used by this API.
+
 Compression helpers
 ===================
 

@@ -72,11 +72,7 @@ libspectrum_la_SOURCES = bzip2.c \
 			 z80em.c \
 			 zxs.c
 
-libspectrum_la_SOURCES += wav.c
-
-if WAV_INTERNAL_PCM
-libspectrum_la_SOURCES += wav_pcm.c
-endif
+libspectrum_la_SOURCES += wav.c wav_pcm.c wav_write.c
 
 if WAV_INTERNAL_MACOS
 libspectrum_la_SOURCES += wav_macos.c

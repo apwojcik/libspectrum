@@ -214,25 +214,35 @@ reading_ezx_invalid_chunks( void )
     size_t length;
     libspectrum_byte first;
   } cases[] = {
-    { "JOY ", 0, 0 }, { "JOY ", 4, 0 }, { "JOY ", 5, 3 },
+    { "JOY ", 0, 0 }, { "JOY ", 4, 0 },
     { "PORT", 1, 0 }, { "BETA", 8, 0 }, { "RAM ", 0, 0 },
     { "RAM ", 16384, 8 }, { "RAM ", 16385, 7 }, { "RAM ", 16385, 64 }
   };
   libspectrum_byte *buffer = libspectrum_new0( libspectrum_byte,
                                      TEST_EZX_FIXED_LENGTH + 8 + 16385 );
   libspectrum_byte *data = libspectrum_new0( libspectrum_byte, 16385 );
+  libspectrum_byte *end;
   size_t i;
   int failed = 0;
 
   memcpy( buffer, "Emuz", 4 );
   for( i = 0; i < ARRAY_SIZE( cases ); i++ ) {
-    libspectrum_byte *end;
     data[0] = cases[i].first;
     end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
                           cases[i].id, data, cases[i].length );
     failed |= ezx_read_expect( buffer, end - buffer,
                                LIBSPECTRUM_ERROR_CORRUPT, 0 );
   }
+  /* Out-of-range joystick count is ignored. */
+  data[0] = 0x10;
+  end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH, "JOY ", data, 5 );
+  failed |= ezx_read_expect( buffer, end - buffer, LIBSPECTRUM_ERROR_NONE,
+                             LIBSPECTRUM_MACHINE_128 );
+  /* An overlong unknown trailing chunk is dropped. */
+  end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH, "TAPE", data, 16 );
+  buffer[TEST_EZX_FIXED_LENGTH + 4] = 0xff;
+  failed |= ezx_read_expect( buffer, end - buffer, LIBSPECTRUM_ERROR_NONE,
+                             LIBSPECTRUM_MACHINE_128 );
   libspectrum_free( data );
   libspectrum_free( buffer );
   return failed ? TEST_FAIL : TEST_PASS;

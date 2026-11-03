@@ -205,19 +205,33 @@ ezx_word( const libspectrum_byte *p )
   return libspectrum_read_word( &p );
 }
 
+static int
+ezx_chunk_known( const libspectrum_byte *id )
+{
+  static const char *ids[] = { "MULT", "JOY ", "PORT", "RAM ", "BETA" };
+  size_t i;
+  for( i = 0; i < ARRAY_SIZE( ids ); i++ )
+    if( !memcmp( id, ids[i], 4 ) ) return 1;
+  return 0;
+}
+
 /* Machine from Lock7FFD and the frame length in the 'MULT' chunk */
 static libspectrum_error
-ezx_machine( const libspectrum_byte *d, size_t len,
+ezx_machine( const libspectrum_byte *d, size_t *length,
              libspectrum_machine *machine )
 {
-  size_t p = EZX_FIXED_LEN;
+  size_t p = EZX_FIXED_LEN, len = *length;
   libspectrum_dword frame = 0;
 
   while( p < len ) {
     libspectrum_dword chunk_len;
     if( len - p < 8 ) goto corrupt;
     chunk_len = libspectrum_read_dword_le( d + p + 4 );
-    if( chunk_len > len - p - 8 ) goto corrupt;
+    if( chunk_len > len - p - 8 ) {
+      /* EmuZWin may write an overlong trailing TAPE chunk; drop it. */
+      if( !ezx_chunk_known( d + p ) ) { *length = p; break; }
+      goto corrupt;
+    }
     if( !memcmp( d + p, "MULT", 4 ) ) {
       if( chunk_len < 9 ) goto corrupt;
       frame = libspectrum_read_dword_le( d + p + 8 + 5 );
@@ -274,7 +288,9 @@ ezx_read_joysticks( libspectrum_snap *snap, const libspectrum_byte *data,
   };
   int i, count = 0;
 
-  if( length < 5 || data[ 0 ] > 2 ) return 1;
+  if( length < 5 ) return 1;
+  /* Real EmuZWin files have 0x10 here; ignore the setup, not the file. */
+  if( data[ 0 ] > 2 ) return 0;
   for( i = 0; i < data[ 0 ]; i++ ) {
     size_t type = data[ 1 + i ];
     /* Custom key mappings and axis inversion have no snapshot equivalent. */
@@ -375,7 +391,7 @@ ezx_read_plain( libspectrum_snap *snap, const libspectrum_byte *d, size_t len )
 
   r = d + EZX_OFS_REGS;
   b = d + EZX_OFS_BANKS;
-  error = ezx_machine( d, len, &machine );
+  error = ezx_machine( d, &len, &machine );
   if( error != LIBSPECTRUM_ERROR_NONE ) return error;
   libspectrum_snap_set_machine( snap, machine );
 

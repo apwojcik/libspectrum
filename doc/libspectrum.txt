@@ -468,6 +468,7 @@ LIBSPECTRUM_ID_SNAPSHOT_SZX     A .szx snapshot (as used by Spectaculator)
 LIBSPECTRUM_ID_SNAPSHOT_Z80	A .z80 snapshot
 LIBSPECTRUM_ID_SNAPSHOT_ZXS	A .zxs snapshot (as used by zx32)
 LIBSPECTRUM_ID_SNAPSHOT_DSNAP   A .S snapshot (as used by D40/D80)
+LIBSPECTRUM_ID_SNAPSHOT_EZX     A .ezx snapshot (as used by EmuZWin, read only)
 
 LIBSPECTRUM_ID_TAPE_CSW		A .csw tape image
 LIBSPECTRUM_ID_TAPE_TAP		A `normal' (Z80-style) .tap tape image
@@ -1158,6 +1159,15 @@ is `LIBSPECTRUM_ID_UNKNOWN', guess the file format via
 identification process and can be set to NULL (or anything else) if
 `type' is not `LIBSPECTRUM_ID_UNKNOWN'. Snapshots compressed with
 bzip2 or gzip will be automatically and transparently decompressed.
+
+The read-only EmuZWin EZX reader restores CPU, RAM, embedded ROMs, AY,
+border/MIC and ROM-paging state. It also reads standard joystick assignments,
+7FFD/1FFD port values, additional RAM banks and Beta paging/seek direction.
+Additional banks and port values do not determine an extended machine model;
+machine selection remains based on the 48K lock and frame timing. Custom
+joystick bindings, axis inversion, embedded media, text/debugger metadata and
+ambiguous +D/Disciple controller state are not restored. EZX disk-operation
+coordinates are not treated as WD1793 register values.
 
 libspectrum_error
 libspectrum_snap_write( libspectrum_byte **buffer, size_t *length,

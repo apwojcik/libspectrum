@@ -7,6 +7,237 @@
 #include "internals.h"
 #include "test.h"
 
+/* Fixed TSpecData size from EZXFormat_Eng.htm, including TTapeData. */
+#define TEST_EZX_FIXED_LENGTH ( 4 + 10 * 16384 + 1 + 43 + 17 + 4 + 30 )
+
+static int
+ezx_read_expect( const libspectrum_byte *buffer, size_t length,
+                 libspectrum_error expected, libspectrum_machine machine )
+{
+  libspectrum_snap *snap = libspectrum_snap_alloc();
+  libspectrum_error error = libspectrum_ezx_read( snap, buffer, length );
+  int failed = error != expected;
+
+  if( !failed && error == LIBSPECTRUM_ERROR_NONE )
+    failed = libspectrum_snap_machine( snap ) != machine;
+  libspectrum_snap_free( snap );
+  return failed;
+}
+
+test_return_t
+reading_ezx_bounds( void )
+{
+  size_t length = TEST_EZX_FIXED_LENGTH;
+  libspectrum_byte *buffer = libspectrum_new0( libspectrum_byte, length + 18 );
+  libspectrum_byte packed[23] = { 'E', 'Z', 'X', 16, 0, 0, 0 };
+  int failed = 0;
+
+  memcpy( buffer, "Emuz", 4 );
+  failed |= ezx_read_expect( buffer, 4, LIBSPECTRUM_ERROR_CORRUPT, 0 );
+  failed |= ezx_read_expect( buffer, length, LIBSPECTRUM_ERROR_NONE,
+                             LIBSPECTRUM_MACHINE_128 );
+  buffer[4 + 10 * 16384] = 1;
+  failed |= ezx_read_expect( buffer, length, LIBSPECTRUM_ERROR_NONE,
+                             LIBSPECTRUM_MACHINE_48 );
+  buffer[4 + 10 * 16384] = 0;
+
+  memcpy( buffer + length, "MULT", 4 );
+  buffer[length + 4] = 9;
+  /* 71680 tstates, at data offset 5. */
+  buffer[length + 14] = 0x18;
+  buffer[length + 15] = 1;
+  failed |= ezx_read_expect( buffer, length + 17, LIBSPECTRUM_ERROR_NONE,
+                             LIBSPECTRUM_MACHINE_PENT );
+  failed |= ezx_read_expect( buffer, length + 16,
+                             LIBSPECTRUM_ERROR_CORRUPT, 0 );
+  failed |= ezx_read_expect( buffer, length + 18,
+                             LIBSPECTRUM_ERROR_CORRUPT, 0 );
+  buffer[length + 4] = 8;
+  failed |= ezx_read_expect( buffer, length + 16,
+                             LIBSPECTRUM_ERROR_CORRUPT, 0 );
+
+  failed |= ezx_read_expect( packed, 7, LIBSPECTRUM_ERROR_CORRUPT, 0 );
+  /* An unterminated offset code, followed by EOF. */
+  failed |= ezx_read_expect( packed, sizeof( packed ),
+                             LIBSPECTRUM_ERROR_CORRUPT, 0 );
+  memset( packed + 7, 0xff, sizeof( packed ) - 7 );
+  failed |= ezx_read_expect( packed, sizeof( packed ),
+                             LIBSPECTRUM_ERROR_CORRUPT, 0 );
+
+  libspectrum_free( buffer );
+  return failed ? TEST_FAIL : TEST_PASS;
+}
+
+/* Append a chunk to a sufficiently large, caller-owned test buffer. */
+static libspectrum_byte *
+ezx_test_chunk( libspectrum_byte *ptr, const char *id,
+                const libspectrum_byte *data, size_t length )
+{
+  memcpy( ptr, id, 4 );
+  ptr += 4;
+  libspectrum_write_dword( &ptr, length );
+  memcpy( ptr, data, length );
+  return ptr + length;
+}
+
+test_return_t
+reading_ezx_fixed_state( void )
+{
+  const size_t lock = 4 + 10 * 16384, banks = lock + 1 + 24 + 7 + 4;
+  libspectrum_byte *buffer = libspectrum_new0( libspectrum_byte,
+                                              TEST_EZX_FIXED_LENGTH );
+  libspectrum_snap *snap = libspectrum_snap_alloc();
+  test_return_t result = TEST_FAIL;
+
+  memcpy( buffer, "Emuz", 4 );
+  memset( buffer + 4, 0xa5, 16384 );
+  memset( buffer + 4 + 16384, 0x5a, 16384 );
+  buffer[banks] = 3; /* Interface 1 ROM paged. */
+  buffer[banks + 3] = 6;
+  buffer[banks + 4] = 1; /* MIC */
+  if( libspectrum_ezx_read( snap, buffer, TEST_EZX_FIXED_LENGTH ) ) goto done;
+  if( !libspectrum_snap_custom_rom( snap ) ||
+      libspectrum_snap_custom_rom_pages( snap ) != 2 ||
+      libspectrum_snap_rom_length( snap, 0 ) != 16384 ||
+      libspectrum_snap_rom_length( snap, 1 ) != 16384 ||
+      memcmp( libspectrum_snap_roms( snap, 0 ), buffer + 4, 16384 ) ||
+      memcmp( libspectrum_snap_roms( snap, 1 ), buffer + 4 + 16384, 16384 ) ||
+      libspectrum_snap_out_ula( snap ) != 14 ||
+      !libspectrum_snap_interface1_active( snap ) ||
+      !libspectrum_snap_interface1_paged( snap ) ) goto done;
+
+  libspectrum_snap_free( snap );
+  snap = libspectrum_snap_alloc();
+  buffer[lock] = 1;
+  buffer[banks] = 1;
+  buffer[banks + 4] = 0;
+  if( libspectrum_ezx_read( snap, buffer, TEST_EZX_FIXED_LENGTH ) ) goto done;
+  if( libspectrum_snap_custom_rom_pages( snap ) != 1 ||
+      libspectrum_snap_rom_length( snap, 0 ) != 16384 ||
+      memcmp( libspectrum_snap_roms( snap, 0 ), buffer + 4 + 16384, 16384 ) ||
+      libspectrum_snap_out_ula( snap ) != 6 ) goto done;
+
+  /* TR-DOS paging is meaningful on non-Pentagon machines as well. */
+  libspectrum_snap_free( snap );
+  snap = libspectrum_snap_alloc();
+  buffer[lock] = 0;
+  buffer[banks] = 2;
+  if( libspectrum_ezx_read( snap, buffer, TEST_EZX_FIXED_LENGTH ) ) goto done;
+  if( !libspectrum_snap_beta_active( snap ) ||
+      !libspectrum_snap_beta_paged( snap ) ) goto done;
+  result = TEST_PASS;
+
+done:
+  libspectrum_snap_free( snap );
+  libspectrum_free( buffer );
+  return result;
+}
+
+test_return_t
+reading_ezx_chunks( void )
+{
+  libspectrum_byte *buffer = libspectrum_new0( libspectrum_byte,
+                                     TEST_EZX_FIXED_LENGTH + 0xd000 );
+  libspectrum_byte *ram = libspectrum_new( libspectrum_byte, 16385 );
+  libspectrum_byte *ptr = buffer + TEST_EZX_FIXED_LENGTH;
+  libspectrum_byte joy[5] = { 2, 0, 3, 0, 0 };
+  const libspectrum_byte ports[] = {
+    0xfd, 0x7f, 0x1b, 0xfd, 0x1f, 0x12, 0x34, 0x12, 0xff
+  };
+  libspectrum_byte beta[9] = { 0x84, 7, 8, 9, 10, 11, 12, 13, 14 };
+  libspectrum_snap *snap = libspectrum_snap_alloc();
+  test_return_t result = TEST_FAIL;
+
+  memcpy( buffer, "Emuz", 4 );
+  ptr = ezx_test_chunk( ptr, "JOY ", joy, sizeof( joy ) );
+  ptr = ezx_test_chunk( ptr, "PORT", ports, sizeof( ports ) );
+  ptr = ezx_test_chunk( ptr, "BETA", beta, sizeof( beta ) );
+  memset( ram, 0x31, 16385 );
+  ram[0] = 8;
+  ptr = ezx_test_chunk( ptr, "RAM ", ram, 16385 );
+  /* Repeated banks replace their previous data without leaking it. */
+  memset( ram + 1, 0x32, 16384 );
+  ptr = ezx_test_chunk( ptr, "RAM ", ram, 16385 );
+  ram[0] = 63;
+  ptr = ezx_test_chunk( ptr, "RAM ", ram, 16385 );
+  if( libspectrum_ezx_read( snap, buffer, ptr - buffer ) ) goto done;
+  if( libspectrum_snap_joystick_active_count( snap ) != 2 ||
+      libspectrum_snap_joystick_list( snap, 0 ) != LIBSPECTRUM_JOYSTICK_KEMPSTON ||
+      libspectrum_snap_joystick_list( snap, 1 ) != LIBSPECTRUM_JOYSTICK_FULLER ||
+      libspectrum_snap_joystick_inputs( snap, 0 ) !=
+        LIBSPECTRUM_JOYSTICK_INPUT_JOYSTICK_1 ||
+      libspectrum_snap_joystick_inputs( snap, 1 ) !=
+        LIBSPECTRUM_JOYSTICK_INPUT_JOYSTICK_2 ||
+      libspectrum_snap_out_128_memoryport( snap ) != 0x1b ||
+      libspectrum_snap_out_plus3_memoryport( snap ) != 0x12 ||
+      !libspectrum_snap_beta_active( snap ) ||
+      !libspectrum_snap_beta_paged( snap ) ||
+      !libspectrum_snap_beta_direction( snap ) ||
+      libspectrum_snap_beta_track( snap ) ||
+      libspectrum_snap_beta_sector( snap ) ||
+      libspectrum_snap_beta_status( snap ) ||
+      !libspectrum_snap_pages( snap, 8 ) ||
+      !libspectrum_snap_pages( snap, 63 ) ||
+      memcmp( libspectrum_snap_pages( snap, 8 ), ram + 1, 16384 ) ||
+      memcmp( libspectrum_snap_pages( snap, 63 ), ram + 1, 16384 ) ) goto done;
+
+  /* Unsupported custom bindings must not consume a snapshot joystick slot. */
+  libspectrum_snap_free( snap );
+  snap = libspectrum_snap_alloc();
+  joy[1] = 5;
+  joy[2] = 4;
+  beta[0] = 0;
+  ptr = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
+                        "JOY ", joy, sizeof( joy ) );
+  ptr = ezx_test_chunk( ptr, "BETA", beta, sizeof( beta ) );
+  if( libspectrum_ezx_read( snap, buffer, ptr - buffer ) ) goto done;
+  if( libspectrum_snap_joystick_active_count( snap ) != 1 ||
+      libspectrum_snap_joystick_list( snap, 0 ) != LIBSPECTRUM_JOYSTICK_CURSOR ||
+      libspectrum_snap_joystick_inputs( snap, 0 ) !=
+        LIBSPECTRUM_JOYSTICK_INPUT_JOYSTICK_2 ||
+      libspectrum_snap_beta_paged( snap ) ||
+      libspectrum_snap_beta_direction( snap ) ) goto done;
+  result = TEST_PASS;
+
+done:
+  libspectrum_snap_free( snap );
+  libspectrum_free( ram );
+  libspectrum_free( buffer );
+  return result;
+}
+
+test_return_t
+reading_ezx_invalid_chunks( void )
+{
+  static const struct {
+    const char *id;
+    size_t length;
+    libspectrum_byte first;
+  } cases[] = {
+    { "JOY ", 0, 0 }, { "JOY ", 4, 0 }, { "JOY ", 5, 3 },
+    { "PORT", 1, 0 }, { "BETA", 8, 0 }, { "RAM ", 0, 0 },
+    { "RAM ", 16384, 8 }, { "RAM ", 16385, 7 }, { "RAM ", 16385, 64 }
+  };
+  libspectrum_byte *buffer = libspectrum_new0( libspectrum_byte,
+                                     TEST_EZX_FIXED_LENGTH + 8 + 16385 );
+  libspectrum_byte *data = libspectrum_new0( libspectrum_byte, 16385 );
+  size_t i;
+  int failed = 0;
+
+  memcpy( buffer, "Emuz", 4 );
+  for( i = 0; i < ARRAY_SIZE( cases ); i++ ) {
+    libspectrum_byte *end;
+    data[0] = cases[i].first;
+    end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
+                          cases[i].id, data, cases[i].length );
+    failed |= ezx_read_expect( buffer, end - buffer,
+                               LIBSPECTRUM_ERROR_CORRUPT, 0 );
+  }
+  libspectrum_free( data );
+  libspectrum_free( buffer );
+  return failed ? TEST_FAIL : TEST_PASS;
+}
+
 /* Test for bug #102: invalid compressed file causes crash */
 test_return_t
 invalid_compressed_file_1( void )

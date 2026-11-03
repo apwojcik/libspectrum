@@ -23,6 +23,7 @@ test_description tests[] = {
               "EZX state survives driver joystick counts and overlong tape tails" ),
   TEST_ENTRY( reading_ezx_joystick_count_mask,
               "EZX joystick counts match EmuZWin's loader mask" ),
+  TEST_ENTRY( reading_ezx_blocks, "EZX snapshot in several compressed blocks" ),
   TEST_ENTRY( pointer_wraparound_in_szx_file,
               "Pointer wraparound in SZX file" ),
   TEST_ENTRY( invalid_tzx_gdb, "Invalid TZX GDB" ),

@@ -463,8 +463,8 @@ libspectrum_error
 libspectrum_ezx_read( libspectrum_snap *snap, const libspectrum_byte *buffer,
                       size_t length )
 {
-  libspectrum_byte *plain = NULL;
-  size_t plain_len = 0, packed_len;
+  libspectrum_byte *plain = NULL, *block;
+  size_t plain_len = 0, block_len, packed_len, position = 3;
   libspectrum_error error;
 
   if( length >= 4 && !memcmp( buffer, "Emuz", 4 ) )
@@ -476,15 +476,32 @@ libspectrum_ezx_read( libspectrum_snap *snap, const libspectrum_byte *buffer,
     return LIBSPECTRUM_ERROR_SIGNATURE;
   }
 
-  packed_len = libspectrum_read_dword_le( buffer + 3 );
-  if( packed_len > length - 7 ) {
-    libspectrum_print_error( LIBSPECTRUM_ERROR_CORRUPT,
-                            "libspectrum_ezx_read: truncated compressed data" );
-    return LIBSPECTRUM_ERROR_CORRUPT;
-  }
+  /* EmuZWin packs the snapshot in independent blocks of at most 512 KiB
+     unpacked, each a 32-bit length and an NRV2E stream, up to end of file. */
+  while( position < length ) {
+    if( length - position < 4 ) goto truncated;
+    packed_len = libspectrum_read_dword_le( buffer + position );
+    position += 4;
+    if( packed_len > length - position ) goto truncated;
 
-  error = ezx_nrv2e( buffer + 7, packed_len, &plain, &plain_len );
-  if( error != LIBSPECTRUM_ERROR_NONE ) return error;
+    error = ezx_nrv2e( buffer + position, packed_len, &block, &block_len );
+    if( error != LIBSPECTRUM_ERROR_NONE ) {
+      libspectrum_free( plain );
+      return error;
+    }
+    if( block_len > EZX_MAX_UNPACKED - plain_len ) {
+      libspectrum_free( block );
+      libspectrum_free( plain );
+      libspectrum_print_error( LIBSPECTRUM_ERROR_CORRUPT,
+                              "libspectrum_ezx_read: unpacked data too large" );
+      return LIBSPECTRUM_ERROR_CORRUPT;
+    }
+    plain = libspectrum_renew( libspectrum_byte, plain, plain_len + block_len );
+    memcpy( plain + plain_len, block, block_len );
+    plain_len += block_len;
+    libspectrum_free( block );
+    position += packed_len;
+  }
 
   if( plain_len < 4 || memcmp( plain, "Emuz", 4 ) ) {
     libspectrum_free( plain );
@@ -496,4 +513,10 @@ libspectrum_ezx_read( libspectrum_snap *snap, const libspectrum_byte *buffer,
   error = ezx_read_plain( snap, plain, plain_len );
   libspectrum_free( plain );
   return error;
+
+truncated:
+  libspectrum_free( plain );
+  libspectrum_print_error( LIBSPECTRUM_ERROR_CORRUPT,
+                          "libspectrum_ezx_read: truncated compressed data" );
+  return LIBSPECTRUM_ERROR_CORRUPT;
 }

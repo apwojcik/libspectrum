@@ -1172,7 +1172,9 @@ masked with 3, matching EmuZWin's loader: the writer can store the Windows
 driver's supported slot count instead of the documented 0..2. A masked count
 of 3 is ignored; 0 clears the joystick setup. An overlong trailing TAPE chunk is
 ignored because tape data is not restored; other chunk types and incomplete
-chunk headers remain strictly checked.
+chunk headers remain strictly checked. Compressed files ("EZX") hold one or
+more blocks up to the end of the file, each a 32-bit length and an independent
+NRV2E stream of at most 512 KiB unpacked; the blocks are concatenated.
 
 libspectrum_error
 libspectrum_snap_write( libspectrum_byte **buffer, size_t *length,

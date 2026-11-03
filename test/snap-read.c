@@ -338,6 +338,85 @@ done:
   return result;
 }
 
+/* Literal-only NRV2E stream as EmuZWin's 8-bit variant decodes it. */
+typedef struct ezx_test_bits {
+  libspectrum_byte *buffer;
+  size_t length, bit_byte;
+  int left;
+} ezx_test_bits;
+
+static void
+ezx_test_bit( ezx_test_bits *bits, int bit )
+{
+  if( !bits->left ) {
+    bits->bit_byte = bits->length++;
+    bits->buffer[ bits->bit_byte ] = 0;
+    bits->left = 8;
+  }
+  bits->left--;
+  if( bit ) bits->buffer[ bits->bit_byte ] |= 1 << bits->left;
+}
+
+static size_t
+ezx_test_pack( const libspectrum_byte *src, size_t length,
+               libspectrum_byte *dst )
+{
+  /* Offset code 0x1000002 and byte 0xff: the end-of-stream marker. */
+  static const char end[] = "00010010010010010010010010010010010101";
+  ezx_test_bits bits = { dst, 0, 0, 0 };
+  size_t i;
+
+  for( i = 0; i < length; i++ ) {
+    ezx_test_bit( &bits, 1 );
+    bits.buffer[ bits.length++ ] = src[i];
+  }
+  ezx_test_bit( &bits, 0 );
+  for( i = 0; end[i]; i++ ) ezx_test_bit( &bits, end[i] == '1' );
+  bits.buffer[ bits.length++ ] = 0xff;
+  return bits.length;
+}
+
+/* EmuZWin splits the packed snapshot into blocks of at most 512 KiB unpacked:
+   a 32-bit length and an independent NRV2E stream each. The 48K lock byte is
+   in the second block here, so reading only the first one fails. */
+test_return_t
+reading_ezx_blocks( void )
+{
+  const size_t split = 100000, lock = 4 + 10 * 16384;
+  libspectrum_byte *plain = libspectrum_new0( libspectrum_byte,
+                                              TEST_EZX_FIXED_LENGTH );
+  libspectrum_byte *packed = libspectrum_new( libspectrum_byte,
+                               3 + 8 + TEST_EZX_FIXED_LENGTH * 9 / 8 + 32 );
+  libspectrum_byte *ptr;
+  size_t first, second, total;
+  int failed = 0;
+
+  memcpy( plain, "Emuz", 4 );
+  plain[ lock ] = 1;
+  memcpy( packed, "EZX", 3 );
+  first = ezx_test_pack( plain, split, packed + 7 );
+  ptr = packed + 3;
+  libspectrum_write_dword( &ptr, first );
+  second = ezx_test_pack( plain + split, TEST_EZX_FIXED_LENGTH - split,
+                          packed + 7 + first + 4 );
+  ptr = packed + 7 + first;
+  libspectrum_write_dword( &ptr, second );
+  total = 7 + first + 4 + second;
+
+  failed |= ezx_read_expect( packed, total, LIBSPECTRUM_ERROR_NONE,
+                             LIBSPECTRUM_MACHINE_48 );
+  /* Second block cut short, or a partial length after the last block. */
+  failed |= ezx_read_expect( packed, total - 1, LIBSPECTRUM_ERROR_CORRUPT, 0 );
+  failed |= ezx_read_expect( packed, 7 + first + 3,
+                             LIBSPECTRUM_ERROR_CORRUPT, 0 );
+  /* The first block alone is a truncated fixed record. */
+  failed |= ezx_read_expect( packed, 7 + first, LIBSPECTRUM_ERROR_CORRUPT, 0 );
+
+  libspectrum_free( packed );
+  libspectrum_free( plain );
+  return failed ? TEST_FAIL : TEST_PASS;
+}
+
 /* Exercise every stored count, including high bits and masked value three.
    Precede it with a valid setup to distinguish clearing from ignoring it. */
 test_return_t

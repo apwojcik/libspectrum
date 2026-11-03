@@ -1167,7 +1167,12 @@ Additional banks and port values do not determine an extended machine model;
 machine selection remains based on the 48K lock and frame timing. Custom
 joystick bindings, axis inversion, embedded media, text/debugger metadata and
 ambiguous +D/Disciple controller state are not restored. EZX disk-operation
-coordinates are not treated as WD1793 register values.
+coordinates are not treated as WD1793 register values. Joystick counts are
+masked with 3, matching EmuZWin's loader: the writer can store the Windows
+driver's supported slot count instead of the documented 0..2. A masked count
+of 3 is ignored; 0 clears the joystick setup. An overlong trailing TAPE chunk is
+ignored because tape data is not restored; other chunk types and incomplete
+chunk headers remain strictly checked.
 
 libspectrum_error
 libspectrum_snap_write( libspectrum_byte **buffer, size_t *length,

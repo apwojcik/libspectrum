@@ -7,6 +7,16 @@
 #include "internals.h"
 #include "test.h"
 
+/* Independent on-disk IDs: do not share the reader's definitions. */
+#define TEST_EZX_CHUNK_TAPE "TAPE"
+#define TEST_EZX_CHUNK_MULT "MULT"
+#define TEST_EZX_CHUNK_JOY  "JOY "
+#define TEST_EZX_CHUNK_PORT "PORT"
+#define TEST_EZX_CHUNK_RAM  "RAM "
+#define TEST_EZX_CHUNK_BETA "BETA"
+#define TEST_EZX_CHUNK_NAME "NAME"
+#define TEST_EZX_CHUNK_UNKNOWN "????"
+
 /* Fixed TSpecData size from EZXFormat_Eng.htm, including TTapeData. */
 #define TEST_EZX_FIXED_LENGTH ( 4 + 10 * 16384 + 1 + 43 + 17 + 4 + 30 )
 
@@ -41,7 +51,7 @@ reading_ezx_bounds( void )
                              LIBSPECTRUM_MACHINE_48 );
   buffer[4 + 10 * 16384] = 0;
 
-  memcpy( buffer + length, "MULT", 4 );
+  memcpy( buffer + length, TEST_EZX_CHUNK_MULT, 4 );
   buffer[length + 4] = 9;
   /* 71680 tstates, at data offset 5. */
   buffer[length + 14] = 0x18;
@@ -149,17 +159,17 @@ reading_ezx_chunks( void )
   test_return_t result = TEST_FAIL;
 
   memcpy( buffer, "Emuz", 4 );
-  ptr = ezx_test_chunk( ptr, "JOY ", joy, sizeof( joy ) );
-  ptr = ezx_test_chunk( ptr, "PORT", ports, sizeof( ports ) );
-  ptr = ezx_test_chunk( ptr, "BETA", beta, sizeof( beta ) );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_JOY, joy, sizeof( joy ) );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_PORT, ports, sizeof( ports ) );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_BETA, beta, sizeof( beta ) );
   memset( ram, 0x31, 16385 );
   ram[0] = 8;
-  ptr = ezx_test_chunk( ptr, "RAM ", ram, 16385 );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_RAM, ram, 16385 );
   /* Repeated banks replace their previous data without leaking it. */
   memset( ram + 1, 0x32, 16384 );
-  ptr = ezx_test_chunk( ptr, "RAM ", ram, 16385 );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_RAM, ram, 16385 );
   ram[0] = 63;
-  ptr = ezx_test_chunk( ptr, "RAM ", ram, 16385 );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_RAM, ram, 16385 );
   if( libspectrum_ezx_read( snap, buffer, ptr - buffer ) ) goto done;
   if( libspectrum_snap_joystick_active_count( snap ) != 2 ||
       libspectrum_snap_joystick_list( snap, 0 ) != LIBSPECTRUM_JOYSTICK_KEMPSTON ||
@@ -188,8 +198,8 @@ reading_ezx_chunks( void )
   joy[2] = 4;
   beta[0] = 0;
   ptr = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
-                        "JOY ", joy, sizeof( joy ) );
-  ptr = ezx_test_chunk( ptr, "BETA", beta, sizeof( beta ) );
+                        TEST_EZX_CHUNK_JOY, joy, sizeof( joy ) );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_BETA, beta, sizeof( beta ) );
   if( libspectrum_ezx_read( snap, buffer, ptr - buffer ) ) goto done;
   if( libspectrum_snap_joystick_active_count( snap ) != 1 ||
       libspectrum_snap_joystick_list( snap, 0 ) != LIBSPECTRUM_JOYSTICK_CURSOR ||
@@ -214,9 +224,16 @@ reading_ezx_invalid_chunks( void )
     size_t length;
     libspectrum_byte first;
   } cases[] = {
-    { "JOY ", 0, 0 }, { "JOY ", 4, 0 },
-    { "PORT", 1, 0 }, { "BETA", 8, 0 }, { "RAM ", 0, 0 },
-    { "RAM ", 16384, 8 }, { "RAM ", 16385, 7 }, { "RAM ", 16385, 64 }
+    { TEST_EZX_CHUNK_JOY, 0, 0 }, { TEST_EZX_CHUNK_JOY, 4, 0 },
+    { TEST_EZX_CHUNK_JOY, 4, 0x10 }, { TEST_EZX_CHUNK_PORT, 1, 0 },
+    { TEST_EZX_CHUNK_BETA, 8, 0 }, { TEST_EZX_CHUNK_RAM, 0, 0 },
+    { TEST_EZX_CHUNK_RAM, 16384, 8 }, { TEST_EZX_CHUNK_RAM, 16385, 7 },
+    { TEST_EZX_CHUNK_RAM, 16385, 64 }
+  };
+  static const char *strict_ids[] = {
+    TEST_EZX_CHUNK_MULT, TEST_EZX_CHUNK_JOY, TEST_EZX_CHUNK_PORT,
+    TEST_EZX_CHUNK_RAM, TEST_EZX_CHUNK_BETA, TEST_EZX_CHUNK_NAME,
+    TEST_EZX_CHUNK_UNKNOWN
   };
   libspectrum_byte *buffer = libspectrum_new0( libspectrum_byte,
                                      TEST_EZX_FIXED_LENGTH + 8 + 16385 );
@@ -233,17 +250,136 @@ reading_ezx_invalid_chunks( void )
     failed |= ezx_read_expect( buffer, end - buffer,
                                LIBSPECTRUM_ERROR_CORRUPT, 0 );
   }
-  /* Out-of-range joystick count is ignored. */
+  /* A driver slot count of 0x10 is masked to zero. */
   data[0] = 0x10;
-  end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH, "JOY ", data, 5 );
+  end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
+                        TEST_EZX_CHUNK_JOY, data, 5 );
   failed |= ezx_read_expect( buffer, end - buffer, LIBSPECTRUM_ERROR_NONE,
                              LIBSPECTRUM_MACHINE_128 );
-  /* An overlong unknown trailing chunk is dropped. */
-  end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH, "TAPE", data, 16 );
+  /* Only the observed overlong TAPE tail is tolerated. */
+  end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
+                        TEST_EZX_CHUNK_TAPE, data, 16 );
   buffer[TEST_EZX_FIXED_LENGTH + 4] = 0xff;
   failed |= ezx_read_expect( buffer, end - buffer, LIBSPECTRUM_ERROR_NONE,
                              LIBSPECTRUM_MACHINE_128 );
+  for( i = 0; i < ARRAY_SIZE( strict_ids ); i++ ) {
+    end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
+                          strict_ids[i], data, 16 );
+    buffer[TEST_EZX_FIXED_LENGTH + 4] = 0xff;
+    failed |= ezx_read_expect( buffer, end - buffer,
+                               LIBSPECTRUM_ERROR_CORRUPT, 0 );
+  }
+  /* Even a TAPE tail needs a complete eight-byte chunk header. */
+  end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
+                        TEST_EZX_CHUNK_TAPE, data, 16 );
+  for( i = 1; i < 8; i++ )
+    failed |= ezx_read_expect( buffer, TEST_EZX_FIXED_LENGTH + i,
+                               LIBSPECTRUM_ERROR_CORRUPT, 0 );
   libspectrum_free( data );
+  libspectrum_free( buffer );
+  return failed ? TEST_FAIL : TEST_PASS;
+}
+
+test_return_t
+reading_ezx_compatibility_state( void )
+{
+  const size_t lock = 4 + 10 * 16384, registers = lock + 1;
+  const size_t banks = registers + 24 + 7 + 4, ay = banks + 8;
+  const size_t page5 = 4 + 2 * 16384 + 5 * 16384;
+  const libspectrum_byte joy[] = { 1, 0, 0, 0, 0 };
+  const libspectrum_byte driver_joy[] = { 0x10, 3, 4, 0, 0 };
+  const libspectrum_byte ports[] = { 0xfd, 0x7f, 0x1b };
+  const libspectrum_byte mult[] = { 0, 0, 0, 0, 0, 0, 0x18, 1, 0 };
+  const libspectrum_byte tape[16] = { 0 };
+  libspectrum_byte *buffer = libspectrum_new0( libspectrum_byte,
+                                              TEST_EZX_FIXED_LENGTH + 128 );
+  libspectrum_byte *ptr = buffer + TEST_EZX_FIXED_LENGTH, *tail_length;
+  libspectrum_snap *snap = libspectrum_snap_alloc();
+  test_return_t result = TEST_FAIL;
+
+  memcpy( buffer, "Emuz", 4 );
+  buffer[registers + 1] = 0x56; /* A */
+  buffer[registers + 20] = 0x34; /* PC = 0x1234 */
+  buffer[registers + 21] = 0x12;
+  buffer[banks + 3] = 5;
+  buffer[banks + 4] = 1; /* MIC */
+  buffer[ay] = 7;
+  buffer[ay + 1 + 9] = 0xab;
+  memset( buffer + page5, 0x6b, 16384 );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_JOY, joy, sizeof( joy ) );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_JOY,
+                        driver_joy, sizeof( driver_joy ) );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_PORT, ports, sizeof( ports ) );
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_MULT, mult, sizeof( mult ) );
+  /* Well-formed unknown chunks are still skipped normally. */
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_UNKNOWN, tape, sizeof( tape ) );
+  tail_length = ptr + 4;
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_TAPE, tape, sizeof( tape ) );
+  libspectrum_write_dword( &tail_length, 0xffffffffUL );
+
+  if( libspectrum_snap_read( snap, buffer, ptr - buffer,
+                             LIBSPECTRUM_ID_SNAPSHOT_EZX, NULL ) ) goto done;
+  if( libspectrum_snap_machine( snap ) != LIBSPECTRUM_MACHINE_PENT ||
+      libspectrum_snap_a( snap ) != 0x56 ||
+      libspectrum_snap_pc( snap ) != 0x1234 ||
+      libspectrum_snap_out_ula( snap ) != 13 ||
+      libspectrum_snap_out_ay_registerport( snap ) != 7 ||
+      libspectrum_snap_ay_registers( snap, 9 ) != 0xab ||
+      libspectrum_snap_out_128_memoryport( snap ) != 0x1b ||
+      libspectrum_snap_joystick_active_count( snap ) != 0 ||
+      !libspectrum_snap_pages( snap, 5 ) ||
+      memcmp( libspectrum_snap_pages( snap, 5 ), buffer + page5, 16384 ) )
+    goto done;
+  result = TEST_PASS;
+
+done:
+  libspectrum_snap_free( snap );
+  libspectrum_free( buffer );
+  return result;
+}
+
+/* Exercise every stored count, including high bits and masked value three.
+   Precede it with a valid setup to distinguish clearing from ignoring it. */
+test_return_t
+reading_ezx_joystick_count_mask( void )
+{
+  const libspectrum_byte initial[] = { 1, 0, 0, 0, 0 };
+  libspectrum_byte joy[] = { 0, 3, 4, 0, 0 };
+  libspectrum_byte *buffer = libspectrum_new0( libspectrum_byte,
+                                              TEST_EZX_FIXED_LENGTH + 26 );
+  libspectrum_byte *ptr, *end;
+  int value, failed = 0;
+
+  memcpy( buffer, "Emuz", 4 );
+  ptr = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
+                        TEST_EZX_CHUNK_JOY, initial, sizeof( initial ) );
+  for( value = 0; value < 256; value++ ) {
+    int masked = value & 3;
+    size_t expected = masked == 3 ? 1 : masked;
+    libspectrum_snap *snap = libspectrum_snap_alloc();
+    joy[0] = value;
+    end = ezx_test_chunk( ptr, TEST_EZX_CHUNK_JOY, joy, sizeof( joy ) );
+    if( libspectrum_ezx_read( snap, buffer, end - buffer ) ||
+        libspectrum_snap_joystick_active_count( snap ) != expected ) {
+      failed = 1;
+    } else if( expected ) {
+      libspectrum_joystick first = masked == 3 ? LIBSPECTRUM_JOYSTICK_KEMPSTON :
+                                                LIBSPECTRUM_JOYSTICK_FULLER;
+      if( libspectrum_snap_joystick_list( snap, 0 ) != first ||
+          libspectrum_snap_joystick_inputs( snap, 0 ) !=
+            LIBSPECTRUM_JOYSTICK_INPUT_JOYSTICK_1 ) failed = 1;
+      if( expected == 2 &&
+          ( libspectrum_snap_joystick_list( snap, 1 ) !=
+              LIBSPECTRUM_JOYSTICK_CURSOR ||
+            libspectrum_snap_joystick_inputs( snap, 1 ) !=
+              LIBSPECTRUM_JOYSTICK_INPUT_JOYSTICK_2 ) ) failed = 1;
+    }
+    libspectrum_snap_free( snap );
+    if( failed ) {
+      fprintf( stderr, "EZX joystick count 0x%02x failed\n", value );
+      break;
+    }
+  }
   libspectrum_free( buffer );
   return failed ? TEST_FAIL : TEST_PASS;
 }

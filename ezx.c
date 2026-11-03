@@ -26,6 +26,13 @@
 
 #include "internals.h"
 
+#define EZX_CHUNK_TAPE "TAPE"
+#define EZX_CHUNK_MULT "MULT"
+#define EZX_CHUNK_JOY  "JOY "
+#define EZX_CHUNK_PORT "PORT"
+#define EZX_CHUNK_RAM  "RAM "
+#define EZX_CHUNK_BETA "BETA"
+
 #define EZX_BANK 0x4000
 /* Resource limit, not a format limit: snapshots may embed disks and graphics. */
 #define EZX_MAX_UNPACKED ( (size_t)16 * 1024 * 1024 )
@@ -205,16 +212,6 @@ ezx_word( const libspectrum_byte *p )
   return libspectrum_read_word( &p );
 }
 
-static int
-ezx_chunk_known( const libspectrum_byte *id )
-{
-  static const char *ids[] = { "MULT", "JOY ", "PORT", "RAM ", "BETA" };
-  size_t i;
-  for( i = 0; i < ARRAY_SIZE( ids ); i++ )
-    if( !memcmp( id, ids[i], 4 ) ) return 1;
-  return 0;
-}
-
 /* Machine from Lock7FFD and the frame length in the 'MULT' chunk */
 static libspectrum_error
 ezx_machine( const libspectrum_byte *d, size_t *length,
@@ -228,11 +225,16 @@ ezx_machine( const libspectrum_byte *d, size_t *length,
     if( len - p < 8 ) goto corrupt;
     chunk_len = libspectrum_read_dword_le( d + p + 4 );
     if( chunk_len > len - p - 8 ) {
-      /* EmuZWin may write an overlong trailing TAPE chunk; drop it. */
-      if( !ezx_chunk_known( d + p ) ) { *length = p; break; }
+      /* Some real EmuZWin files have a TAPE length exceeding the remaining
+         input. We do not restore tape data, so stop parsing at this chunk.
+         Keep all other chunk types strict, including unknown ones. */
+      if( !memcmp( d + p, EZX_CHUNK_TAPE, 4 ) ) {
+        *length = p;
+        break;
+      }
       goto corrupt;
     }
-    if( !memcmp( d + p, "MULT", 4 ) ) {
+    if( !memcmp( d + p, EZX_CHUNK_MULT, 4 ) ) {
       if( chunk_len < 9 ) goto corrupt;
       frame = libspectrum_read_dword_le( d + p + 8 + 5 );
     }
@@ -286,12 +288,15 @@ ezx_read_joysticks( libspectrum_snap *snap, const libspectrum_byte *data,
     LIBSPECTRUM_JOYSTICK_SINCLAIR_2, LIBSPECTRUM_JOYSTICK_FULLER,
     LIBSPECTRUM_JOYSTICK_CURSOR
   };
-  int i, count = 0;
+  int i, joystick_count, count = 0;
 
   if( length < 5 ) return 1;
-  /* Real EmuZWin files have 0x10 here; ignore the setup, not the file. */
-  if( data[ 0 ] > 2 ) return 0;
-  for( i = 0; i < data[ 0 ]; i++ ) {
+  /* EmuZWin 2.7 writes joyGetNumDevs(), a driver-supported slot count,
+     rather than the documented 0..2 configured joysticks (often 0x10).
+     Match its loader's mask; three assignments cannot fit this chunk. */
+  joystick_count = data[ 0 ] & 3;
+  if( joystick_count > 2 ) return 0;
+  for( i = 0; i < joystick_count; i++ ) {
     size_t type = data[ 1 + i ];
     /* Custom key mappings and axis inversion have no snapshot equivalent. */
     if( type >= ARRAY_SIZE( types ) ) continue;
@@ -330,11 +335,11 @@ static int
 ezx_read_chunk( libspectrum_snap *snap, const libspectrum_byte *id,
                 const libspectrum_byte *data, size_t length )
 {
-  if( !memcmp( id, "JOY ", 4 ) )
+  if( !memcmp( id, EZX_CHUNK_JOY, 4 ) )
     return ezx_read_joysticks( snap, data, length );
-  if( !memcmp( id, "PORT", 4 ) )
+  if( !memcmp( id, EZX_CHUNK_PORT, 4 ) )
     return ezx_read_ports( snap, data, length );
-  if( !memcmp( id, "RAM ", 4 ) ) {
+  if( !memcmp( id, EZX_CHUNK_RAM, 4 ) ) {
     int bank;
     if( length != EZX_BANK + 1 ) return 1;
     bank = data[ 0 ];
@@ -342,7 +347,7 @@ ezx_read_chunk( libspectrum_snap *snap, const libspectrum_byte *id,
     libspectrum_free( libspectrum_snap_pages( snap, bank ) );
     /* Preserve extra banks without guessing an extended machine model. */
     libspectrum_snap_set_pages( snap, bank, ezx_copy( data + 1, EZX_BANK ) );
-  } else if( !memcmp( id, "BETA", 4 ) ) {
+  } else if( !memcmp( id, EZX_CHUNK_BETA, 4 ) ) {
     if( length < 9 ) return 1;
     libspectrum_snap_set_beta_active( snap, 1 );
     libspectrum_snap_set_beta_paged( snap, !!( data[ 0 ] & 0x80 ) );

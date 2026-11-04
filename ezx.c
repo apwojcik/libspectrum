@@ -16,8 +16,10 @@
    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
    Format: EZXFormat_Eng.htm by Vladimir Kladov (EmuZWin 2.7 package).
-   Plain file starts with "Emuz"; compressed one with "EZX", a 32-bit
-   compressed length and a UCL NRV2E (8-bit) stream of the plain file.
+   Plain files start with "Emuz"; compressed files start with "EZX", then
+   independent blocks through EOF. Each block has a 32-bit compressed length
+   and a UCL NRV2E (8-bit) stream, expanding to at most 512 KiB. Concatenating
+   their output gives the plain file.
 */
 
 #include "config.h"
@@ -26,7 +28,6 @@
 
 #include "internals.h"
 
-#define EZX_CHUNK_TAPE "TAPE"
 #define EZX_CHUNK_MULT "MULT"
 #define EZX_CHUNK_JOY  "JOY "
 #define EZX_CHUNK_PORT "PORT"
@@ -34,6 +35,7 @@
 #define EZX_CHUNK_BETA "BETA"
 
 #define EZX_BANK 0x4000
+#define EZX_MAX_BLOCK_UNPACKED ( (size_t)512 * 1024 )
 /* Resource limit, not a format limit: snapshots may embed disks and graphics. */
 #define EZX_MAX_UNPACKED ( (size_t)16 * 1024 * 1024 )
 
@@ -88,7 +90,7 @@ ezx_put( libspectrum_byte **output, size_t *length, size_t *allocated,
 {
   /* Keep bounded doubling here: make_room does not enforce a size limit. */
   if( *length >= *allocated ) {
-    if( *allocated >= EZX_MAX_UNPACKED ) return 1;
+    if( *allocated >= EZX_MAX_BLOCK_UNPACKED ) return 1;
     *allocated *= 2;
     *output = libspectrum_renew( libspectrum_byte, *output, *allocated );
   }
@@ -145,7 +147,7 @@ ezx_read_length( ezx_bits *bits, libspectrum_dword offset,
   } else {
     value = 1;
     do {
-      if( value > EZX_MAX_UNPACKED / 2 ) return 1;
+      if( value > EZX_MAX_BLOCK_UNPACKED / 2 ) return 1;
       value = value * 2 + ezx_getbit( bits );
       if( bits->error ) return 1;
     } while( !ezx_getbit( bits ) );
@@ -186,7 +188,7 @@ ezx_nrv2e( const libspectrum_byte *src, size_t len,
     if( m_off == 0xffffffffUL ) break;
     if( ezx_read_length( &s, m_off, &m_len ) ) goto fail;
     if( !m_off || m_off > olen ||
-        m_len > EZX_MAX_UNPACKED - olen ) goto fail;
+        m_len > EZX_MAX_BLOCK_UNPACKED - olen ) goto fail;
 
     for( ; m_len; m_len-- ) {
       if( ezx_put( &dst, &olen, &osize, dst[ olen - m_off ] ) ) goto fail;
@@ -214,26 +216,17 @@ ezx_word( const libspectrum_byte *p )
 
 /* Machine from Lock7FFD and the frame length in the 'MULT' chunk */
 static libspectrum_error
-ezx_machine( const libspectrum_byte *d, size_t *length,
+ezx_machine( const libspectrum_byte *d, size_t len,
              libspectrum_machine *machine )
 {
-  size_t p = EZX_FIXED_LEN, len = *length;
+  size_t p = EZX_FIXED_LEN;
   libspectrum_dword frame = 0;
 
   while( p < len ) {
     libspectrum_dword chunk_len;
     if( len - p < 8 ) goto corrupt;
     chunk_len = libspectrum_read_dword_le( d + p + 4 );
-    if( chunk_len > len - p - 8 ) {
-      /* Some real EmuZWin files have a TAPE length exceeding the remaining
-         input. We do not restore tape data, so stop parsing at this chunk.
-         Keep all other chunk types strict, including unknown ones. */
-      if( !memcmp( d + p, EZX_CHUNK_TAPE, 4 ) ) {
-        *length = p;
-        break;
-      }
-      goto corrupt;
-    }
+    if( chunk_len > len - p - 8 ) goto corrupt;
     if( !memcmp( d + p, EZX_CHUNK_MULT, 4 ) ) {
       if( chunk_len < 9 ) goto corrupt;
       frame = libspectrum_read_dword_le( d + p + 8 + 5 );
@@ -396,7 +389,7 @@ ezx_read_plain( libspectrum_snap *snap, const libspectrum_byte *d, size_t len )
 
   r = d + EZX_OFS_REGS;
   b = d + EZX_OFS_BANKS;
-  error = ezx_machine( d, &len, &machine );
+  error = ezx_machine( d, len, &machine );
   if( error != LIBSPECTRUM_ERROR_NONE ) return error;
   libspectrum_snap_set_machine( snap, machine );
 
@@ -496,9 +489,11 @@ libspectrum_ezx_read( libspectrum_snap *snap, const libspectrum_byte *buffer,
                               "libspectrum_ezx_read: unpacked data too large" );
       return LIBSPECTRUM_ERROR_CORRUPT;
     }
-    plain = libspectrum_renew( libspectrum_byte, plain, plain_len + block_len );
-    memcpy( plain + plain_len, block, block_len );
-    plain_len += block_len;
+    if( block_len ) {
+      plain = libspectrum_renew( libspectrum_byte, plain, plain_len + block_len );
+      memcpy( plain + plain_len, block, block_len );
+      plain_len += block_len;
+    }
     libspectrum_free( block );
     position += packed_len;
   }

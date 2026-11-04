@@ -101,6 +101,8 @@ test_return_t reading_ezx_invalid_chunks( void );
 test_return_t reading_ezx_compatibility_state( void );
 test_return_t reading_ezx_joystick_count_mask( void );
 test_return_t reading_ezx_blocks( void );
+test_return_t reading_ezx_block_boundaries( void );
+test_return_t reading_ezx_block_limits( void );
 test_return_t invalid_tzx_gdb( void );
 test_return_t empty_tzx_drb( void );
 test_return_t invalid_tzx_archive_info_block( void );

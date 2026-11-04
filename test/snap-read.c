@@ -233,7 +233,7 @@ reading_ezx_invalid_chunks( void )
   static const char *strict_ids[] = {
     TEST_EZX_CHUNK_MULT, TEST_EZX_CHUNK_JOY, TEST_EZX_CHUNK_PORT,
     TEST_EZX_CHUNK_RAM, TEST_EZX_CHUNK_BETA, TEST_EZX_CHUNK_NAME,
-    TEST_EZX_CHUNK_UNKNOWN
+    TEST_EZX_CHUNK_UNKNOWN, TEST_EZX_CHUNK_TAPE
   };
   libspectrum_byte *buffer = libspectrum_new0( libspectrum_byte,
                                      TEST_EZX_FIXED_LENGTH + 8 + 16385 );
@@ -254,12 +254,6 @@ reading_ezx_invalid_chunks( void )
   data[0] = 0x10;
   end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
                         TEST_EZX_CHUNK_JOY, data, 5 );
-  failed |= ezx_read_expect( buffer, end - buffer, LIBSPECTRUM_ERROR_NONE,
-                             LIBSPECTRUM_MACHINE_128 );
-  /* Only the observed overlong TAPE tail is tolerated. */
-  end = ezx_test_chunk( buffer + TEST_EZX_FIXED_LENGTH,
-                        TEST_EZX_CHUNK_TAPE, data, 16 );
-  buffer[TEST_EZX_FIXED_LENGTH + 4] = 0xff;
   failed |= ezx_read_expect( buffer, end - buffer, LIBSPECTRUM_ERROR_NONE,
                              LIBSPECTRUM_MACHINE_128 );
   for( i = 0; i < ARRAY_SIZE( strict_ids ); i++ ) {
@@ -293,7 +287,7 @@ reading_ezx_compatibility_state( void )
   const libspectrum_byte tape[16] = { 0 };
   libspectrum_byte *buffer = libspectrum_new0( libspectrum_byte,
                                               TEST_EZX_FIXED_LENGTH + 128 );
-  libspectrum_byte *ptr = buffer + TEST_EZX_FIXED_LENGTH, *tail_length;
+  libspectrum_byte *ptr = buffer + TEST_EZX_FIXED_LENGTH;
   libspectrum_snap *snap = libspectrum_snap_alloc();
   test_return_t result = TEST_FAIL;
 
@@ -309,13 +303,12 @@ reading_ezx_compatibility_state( void )
   ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_JOY, joy, sizeof( joy ) );
   ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_JOY,
                         driver_joy, sizeof( driver_joy ) );
-  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_PORT, ports, sizeof( ports ) );
   ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_MULT, mult, sizeof( mult ) );
   /* Well-formed unknown chunks are still skipped normally. */
   ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_UNKNOWN, tape, sizeof( tape ) );
-  tail_length = ptr + 4;
   ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_TAPE, tape, sizeof( tape ) );
-  libspectrum_write_dword( &tail_length, 0xffffffffUL );
+  /* Ignored tape data must not hide supported chunks that follow it. */
+  ptr = ezx_test_chunk( ptr, TEST_EZX_CHUNK_PORT, ports, sizeof( ports ) );
 
   if( libspectrum_snap_read( snap, buffer, ptr - buffer,
                              LIBSPECTRUM_ID_SNAPSHOT_EZX, NULL ) ) goto done;
@@ -357,12 +350,22 @@ ezx_test_bit( ezx_test_bits *bits, int bit )
   if( bit ) bits->buffer[ bits->bit_byte ] |= 1 << bits->left;
 }
 
+static void
+ezx_test_end( ezx_test_bits *bits )
+{
+  /* Offset code 0x1000002 and byte 0xff: the end-of-stream marker. */
+  static const char end[] = "00010010010010010010010010010010010101";
+  size_t i;
+
+  ezx_test_bit( bits, 0 );
+  for( i = 0; end[i]; i++ ) ezx_test_bit( bits, end[i] == '1' );
+  bits->buffer[ bits->length++ ] = 0xff;
+}
+
 static size_t
 ezx_test_pack( const libspectrum_byte *src, size_t length,
                libspectrum_byte *dst )
 {
-  /* Offset code 0x1000002 and byte 0xff: the end-of-stream marker. */
-  static const char end[] = "00010010010010010010010010010010010101";
   ezx_test_bits bits = { dst, 0, 0, 0 };
   size_t i;
 
@@ -370,10 +373,33 @@ ezx_test_pack( const libspectrum_byte *src, size_t length,
     ezx_test_bit( &bits, 1 );
     bits.buffer[ bits.length++ ] = src[i];
   }
-  ezx_test_bit( &bits, 0 );
-  for( i = 0; end[i]; i++ ) ezx_test_bit( &bits, end[i] == '1' );
-  bits.buffer[ bits.length++ ] = 0xff;
+  ezx_test_end( &bits );
   return bits.length;
+}
+
+/* A zero literal followed by one overlapping distance-one match. Test
+   lengths must be at least seven bytes; the encoded length is length - 5. */
+static libspectrum_byte *
+ezx_test_zero_block( libspectrum_byte *dst, size_t length )
+{
+  ezx_test_bits bits = { dst + 4, 0, 0, 0 };
+  size_t value = length - 5, mask = 1;
+
+  ezx_test_bit( &bits, 1 );
+  bits.buffer[ bits.length++ ] = 0;
+  ezx_test_bit( &bits, 0 );
+  ezx_test_bit( &bits, 0 );
+  ezx_test_bit( &bits, 1 ); /* Reuse initial offset one. */
+  ezx_test_bit( &bits, 0 );
+  ezx_test_bit( &bits, 0 ); /* Long length prefix. */
+  while( mask <= value / 2 ) mask *= 2;
+  for( mask >>= 1; mask; mask >>= 1 ) {
+    ezx_test_bit( &bits, !!( value & mask ) );
+    ezx_test_bit( &bits, mask == 1 );
+  }
+  ezx_test_end( &bits );
+  libspectrum_write_dword( &dst, bits.length );
+  return dst + bits.length;
 }
 
 /* EmuZWin splits the packed snapshot into blocks of at most 512 KiB unpacked:
@@ -388,7 +414,8 @@ reading_ezx_blocks( void )
   libspectrum_byte *packed = libspectrum_new( libspectrum_byte,
                                3 + 8 + TEST_EZX_FIXED_LENGTH * 9 / 8 + 32 );
   libspectrum_byte *ptr;
-  size_t first, second, total;
+  size_t first, second, total, empty_length;
+  libspectrum_byte empty[16];
   int failed = 0;
 
   memcpy( plain, "Emuz", 4 );
@@ -411,7 +438,115 @@ reading_ezx_blocks( void )
                              LIBSPECTRUM_ERROR_CORRUPT, 0 );
   /* The first block alone is a truncated fixed record. */
   failed |= ezx_read_expect( packed, 7 + first, LIBSPECTRUM_ERROR_CORRUPT, 0 );
+  packed[total] = 0;
+  failed |= ezx_read_expect( packed, total + 1, LIBSPECTRUM_ERROR_CORRUPT, 0 );
 
+  /* An empty decoded block must not require a non-NULL aggregate buffer. */
+  empty_length = ezx_test_pack( NULL, 0, empty );
+  memmove( packed + 7 + empty_length, packed + 3, total - 3 );
+  ptr = packed + 3;
+  libspectrum_write_dword( &ptr, empty_length );
+  memcpy( ptr, empty, empty_length );
+  total += 4 + empty_length;
+  failed |= ezx_read_expect( packed, total, LIBSPECTRUM_ERROR_NONE,
+                             LIBSPECTRUM_MACHINE_48 );
+
+  libspectrum_free( packed );
+  libspectrum_free( plain );
+  return failed ? TEST_FAIL : TEST_PASS;
+}
+
+/* A chunk crosses the real 512 KiB boundary and is followed by MULT in the
+   second block. One byte over that per-block limit must be rejected even
+   when concatenation would otherwise produce a well-formed snapshot. */
+test_return_t
+reading_ezx_block_boundaries( void )
+{
+  const size_t block_limit = 512 * 1024;
+  const size_t chunk_end = block_limit + 64, plain_length = chunk_end + 17;
+  const libspectrum_byte mult[] = { 0, 0, 0, 0, 0, 0, 0x18, 1, 0 };
+  libspectrum_byte *plain = libspectrum_new0( libspectrum_byte, plain_length );
+  libspectrum_byte *packed = libspectrum_new( libspectrum_byte,
+                                             plain_length * 9 / 8 + 64 );
+  libspectrum_byte *ptr;
+  size_t split, first, second;
+  int failed = 0;
+
+  memcpy( plain, "Emuz", 4 );
+  ptr = plain + TEST_EZX_FIXED_LENGTH;
+  memcpy( ptr, TEST_EZX_CHUNK_UNKNOWN, 4 );
+  ptr += 4;
+  libspectrum_write_dword( &ptr, chunk_end - TEST_EZX_FIXED_LENGTH - 8 );
+  memset( ptr, 0xa6, chunk_end - TEST_EZX_FIXED_LENGTH - 8 );
+  ezx_test_chunk( plain + chunk_end, TEST_EZX_CHUNK_MULT, mult, sizeof( mult ) );
+  memcpy( packed, "EZX", 3 );
+  for( split = block_limit; split <= block_limit + 1; split++ ) {
+    first = ezx_test_pack( plain, split, packed + 7 );
+    ptr = packed + 3;
+    libspectrum_write_dword( &ptr, first );
+    second = ezx_test_pack( plain + split, plain_length - split,
+                            packed + 7 + first + 4 );
+    ptr = packed + 7 + first;
+    libspectrum_write_dword( &ptr, second );
+    failed |= ezx_read_expect( packed, 7 + first + 4 + second,
+                  split == block_limit ? LIBSPECTRUM_ERROR_NONE :
+                                         LIBSPECTRUM_ERROR_CORRUPT,
+                  LIBSPECTRUM_MACHINE_PENT );
+  }
+  libspectrum_free( packed );
+  libspectrum_free( plain );
+  return failed ? TEST_FAIL : TEST_PASS;
+}
+
+/* Match expansion must obey both the per-block and aggregate limits. Each
+   stream describes a valid snapshot if the corresponding limit is removed,
+   so corruption cannot be mistaken for enforcement of the resource cap. */
+test_return_t
+reading_ezx_block_limits( void )
+{
+  const size_t block_limit = 512 * 1024, total_limit = 16 * 1024 * 1024;
+  const size_t first_length = TEST_EZX_FIXED_LENGTH + 8;
+  libspectrum_byte *plain = libspectrum_new0( libspectrum_byte, first_length );
+  libspectrum_byte *packed = libspectrum_new( libspectrum_byte,
+                                             first_length * 9 / 8 + 4096 );
+  libspectrum_byte *ptr, *end;
+  size_t length, first, remaining;
+  int extra, failed = 0;
+
+  memcpy( plain, "Emuz", 4 );
+  memcpy( plain + TEST_EZX_FIXED_LENGTH, TEST_EZX_CHUNK_UNKNOWN, 4 );
+  memcpy( packed, "EZX", 3 );
+  for( extra = 0; extra <= 1; extra++ ) {
+    length = block_limit + extra;
+    ptr = plain + TEST_EZX_FIXED_LENGTH + 4;
+    libspectrum_write_dword( &ptr, length );
+    first = ezx_test_pack( plain, first_length, packed + 7 );
+    ptr = packed + 3;
+    libspectrum_write_dword( &ptr, first );
+    end = ezx_test_zero_block( packed + 7 + first, length );
+    failed |= ezx_read_expect( packed, end - packed,
+                               extra ? LIBSPECTRUM_ERROR_CORRUPT :
+                                       LIBSPECTRUM_ERROR_NONE,
+                               LIBSPECTRUM_MACHINE_128 );
+  }
+  for( extra = 0; extra <= 1; extra++ ) {
+    remaining = total_limit + extra - first_length;
+    ptr = plain + TEST_EZX_FIXED_LENGTH + 4;
+    libspectrum_write_dword( &ptr, remaining );
+    first = ezx_test_pack( plain, first_length, packed + 7 );
+    ptr = packed + 3;
+    libspectrum_write_dword( &ptr, first );
+    end = packed + 7 + first;
+    while( remaining ) {
+      length = MIN( remaining, block_limit );
+      end = ezx_test_zero_block( end, length );
+      remaining -= length;
+    }
+    failed |= ezx_read_expect( packed, end - packed,
+                               extra ? LIBSPECTRUM_ERROR_CORRUPT :
+                                       LIBSPECTRUM_ERROR_NONE,
+                               LIBSPECTRUM_MACHINE_128 );
+  }
   libspectrum_free( packed );
   libspectrum_free( plain );
   return failed ? TEST_FAIL : TEST_PASS;

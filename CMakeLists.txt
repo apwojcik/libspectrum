@@ -72,6 +72,21 @@ check_symbol_exists(_stricmp "string.h" HAVE__STRICMP)
 check_symbol_exists(strncasecmp "string.h;strings.h" HAVE_STRNCASECMP)
 check_symbol_exists(_strnicmp "string.h" HAVE__STRNICMP)
 
+# Silence compiler warnings in fetched third-party code; they are not ours to fix.
+function(suppress_compilation_warnings src_dir)
+    get_property(_targets DIRECTORY "${src_dir}" PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(_t IN LISTS _targets)
+        get_target_property(_type ${_t} TYPE)
+        if(NOT _type STREQUAL "INTERFACE_LIBRARY" AND NOT _type STREQUAL "UTILITY")
+            if(MSVC)
+                target_compile_options(${_t} PRIVATE /w)
+            else()
+                target_compile_options(${_t} PRIVATE -w)
+            endif()
+        endif()
+    endforeach()
+endfunction()
+
 find_package(ZLIB 1.3.2 QUIET)
 if(NOT ZLIB_FOUND)
     FetchContent_Declare(
@@ -85,6 +100,7 @@ if(NOT ZLIB_FOUND)
     set(CACHE{ZLIB_BUILD_EXAMPLES} TYPE BOOL FORCE VALUE OFF)
 
     FetchContent_MakeAvailable(zlib)
+    suppress_compilation_warnings("${zlib_SOURCE_DIR}")
 endif()
 
 find_package(bip2 CONFIG QUIET)
@@ -105,6 +121,7 @@ if(NOT bzip2_FOUND)
     set(CACHE{ENABLE_TESTS} TYPE BOOL FORCE VALUE OFF)
 
     FetchContent_MakeAvailable(bzip2)
+    suppress_compilation_warnings("${bzip2_SOURCE_DIR}")
 endif()
 
 # libgcrypt: optional; crypto.c is always compiled and self-guards on

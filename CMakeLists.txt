@@ -72,7 +72,7 @@ check_symbol_exists(_stricmp "string.h" HAVE__STRICMP)
 check_symbol_exists(strncasecmp "string.h;strings.h" HAVE_STRNCASECMP)
 check_symbol_exists(_strnicmp "string.h" HAVE__STRNICMP)
 
-find_package(ZLIB QUIET)
+find_package(ZLIB 1.3.2 QUIET)
 if(NOT ZLIB_FOUND)
     FetchContent_Declare(
             zlib

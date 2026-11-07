@@ -33,7 +33,7 @@
 
 static constexpr libspectrum_dword tstates_per_ms = TZX_HZ / 1000;
 
-static constexpr const char *spectrum_tokens[] = {
+static const char *spectrum_tokens[] = {
   "SPECTRUM",
   "PLAY",      "RND",       "INKEY$",    "PI",
   "FN",        "POINT",     "SCREEN$",   "ATTR",
@@ -60,7 +60,7 @@ static constexpr const char *spectrum_tokens[] = {
   "DRAW",      "CLEAR",     "RETURN",    "COPY"
 };
 
-static constexpr const char *graphics_tokens[] = {
+static const char *graphics_tokens[] = {
   " ", "▝", "▘", "▀", "▗", "▐", "▚", "▜",
   "▖", "▞", "▌", "▛", "▄", "▟", "▙", "█"
 };

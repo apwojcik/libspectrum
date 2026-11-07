@@ -20,7 +20,7 @@
 #include "internals.h"
 #include "pzx_internals.h"
 
-static constexpr struct {
+static const struct {
   const char *name;
   int id;
 } archive_info[] = {

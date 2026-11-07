@@ -122,7 +122,7 @@ typedef struct timings_t {
 } timings_t;
 
 /* The actual data from which the full timings are constructed */
-static constexpr timings_t base_timings[] = {
+static const timings_t base_timings[] = {
 
   /* 48K */
   { 3500000,       0, &timings_frame_ferranti_5c_6c },

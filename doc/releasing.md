@@ -49,7 +49,7 @@ When given `--version`, it also updates:
 The script does not update:
 
 - `ChangeLog`
-- the shared library `SOVERSION` in `CMakeLists.txt`
+- the `LIBSPECTRUM_ABI_CURRENT`/`REVISION`/`AGE` values in `CMakeLists.txt`
 - generated files
 - release tarballs, tags, or announcements
 
@@ -82,10 +82,11 @@ libspectrum or to prepare a release. If it is unavailable, update
 ## Versioning notes
 
 The project release version in `CMakeLists.txt` (`project(... VERSION ...)`)
-is separate from the shared library ABI version, which is set through the
-`SOVERSION` property of the `spectrum` target in the same file. Review
-both during a release, and bump `SOVERSION` whenever the ABI changes
-incompatibly.
+is separate from the shared library ABI version, which is set by the
+`LIBSPECTRUM_ABI_CURRENT`, `LIBSPECTRUM_ABI_REVISION` and
+`LIBSPECTRUM_ABI_AGE` variables in the same file (the old libtool
+`-version-info current:revision:age`; the comment above them has the
+rules of thumb). Review both during a release.
 
 ## ABI compatibility check with Docker
 
@@ -176,8 +177,8 @@ The run creates these host-visible files under `abi-out/`:
 - `libspectrum-<ref>.dump` for each side of the comparison
 - `libspectrum-abi-report-<old>-to-<new>.html`
 
-Open the HTML report in a browser and use it, to decide whether `SOVERSION`
-should change for a backward-compatible ABI update or an ABI break.
+Open the HTML report in a browser and use it to decide whether the
+`LIBSPECTRUM_ABI_*` values should change for a backward-compatible ABI update or an ABI break.
 
 ## Verification
 

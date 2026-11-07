@@ -393,9 +393,21 @@ if(WIN32)
     endif()
 endif()
 
+# Shared library ABI version, kept in step with the old libtool
+# -version-info current:revision:age (21:0:0 => libspectrum.so.21.0.0).
+# Rules of thumb, as for libtool:
+# * Increase CURRENT whenever an interface has been added, removed or changed.
+# * Always increase REVISION.
+# * Increase AGE only if the ABI changes are backward compatible.
+# The soname is CURRENT - AGE, the file version CURRENT-AGE.AGE.REVISION.
+set(LIBSPECTRUM_ABI_CURRENT 21)
+set(LIBSPECTRUM_ABI_REVISION 0)
+set(LIBSPECTRUM_ABI_AGE 0)
+math(EXPR LIBSPECTRUM_ABI_MAJOR "${LIBSPECTRUM_ABI_CURRENT} - ${LIBSPECTRUM_ABI_AGE}")
+
 set_target_properties(spectrum PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR})
+    VERSION ${LIBSPECTRUM_ABI_MAJOR}.${LIBSPECTRUM_ABI_AGE}.${LIBSPECTRUM_ABI_REVISION}
+    SOVERSION ${LIBSPECTRUM_ABI_MAJOR})
 
 target_compile_definitions(spectrum PRIVATE LIBSPECTRUM_EXPORTS)
 

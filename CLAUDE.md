@@ -53,7 +53,7 @@ docker build -f tools/Dockerfile.abi -t libspectrum-abi-check .
 docker run --rm -v "$PWD:/work" libspectrum-abi-check sh /work/tools/check-abi-in-docker.sh [<old-ref> [<new-ref>]]
 ```
 
-Report lands in `abi-out/`. See `doc/releasing.md` for full details and when to bump `SOVERSION` in `CMakeLists.txt`.
+Report lands in `abi-out/`. See `doc/releasing.md` for full details and when to bump the `LIBSPECTRUM_ABI_*` values in `CMakeLists.txt`.
 
 ## Architecture
 

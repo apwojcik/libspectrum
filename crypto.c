@@ -161,19 +161,19 @@ create_key( gcry_sexp_t *s_key, libspectrum_rzx_dsa_key *key,
 
   for( i=0; i<MPI_COUNT; i++ ) mpis[i] = nullptr;
 
-    error = gcry_mpi_scan( &mpis[0], GCRYMPI_FMT_HEX, (unsigned char*)key->p,
+    error = gcry_mpi_scan( &mpis[0], GCRYMPI_FMT_HEX, key->p,
 			   0, nullptr );
   if( !error ) 
-    error = gcry_mpi_scan( &mpis[1], GCRYMPI_FMT_HEX, (unsigned char*)key->q,
+    error = gcry_mpi_scan( &mpis[1], GCRYMPI_FMT_HEX, key->q,
 			   0, nullptr );
   if( !error )
-    error = gcry_mpi_scan( &mpis[2], GCRYMPI_FMT_HEX, (unsigned char*)key->g,
+    error = gcry_mpi_scan( &mpis[2], GCRYMPI_FMT_HEX, key->g,
 			   0, nullptr );
   if( !error )
-    error = gcry_mpi_scan( &mpis[3], GCRYMPI_FMT_HEX, (unsigned char*)key->y,
+    error = gcry_mpi_scan( &mpis[3], GCRYMPI_FMT_HEX, key->y,
 			   0, nullptr );
   if( !error && secret_key )
-    error = gcry_mpi_scan( &mpis[4], GCRYMPI_FMT_HEX, (unsigned char*)key->x,
+    error = gcry_mpi_scan( &mpis[4], GCRYMPI_FMT_HEX, key->x,
 			   0, nullptr );
 
   if( error ) {

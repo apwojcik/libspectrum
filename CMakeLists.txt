@@ -32,9 +32,13 @@ if(MSVC)
 endif()
 
 option(BUILD_SHARED_LIBS "Build libspectrum shared library" ON)
+option(ZLIB_SUPPORT "Use zlib for compressed file support" ON)
+option(BZIP2_SUPPORT "Use bzip2 for compressed file support" ON)
 option(WAV_SUPPORT "Enable WAV audio files" ON)
 option(LIBGCRYPT_SUPPORT "Use libgcrypt for RZX signing/verification" ON)
 option(USE_FAKE_GLIB "Use the bundled myglib/ GLib replacement instead of real GLib" ${WIN32})
+option(LIBSPECTRUM_ENABLE_WARNINGS "Give lots of compiler warnings when using GCC/Clang" OFF)
+option(LIBSPECTRUM_BUILD_TESTS "Build the test suite (test/test)" OFF)
 
 if (WIN32)
     option(LIBSPECTRUM_USE_MSVC_STATIC_RUNTIME "Link MSVC runtime library statically" ON)
@@ -87,41 +91,50 @@ function(suppress_compilation_warnings src_dir)
     endforeach()
 endfunction()
 
-find_package(ZLIB 1.3.2 QUIET)
-if(NOT ZLIB_FOUND)
-    FetchContent_Declare(
-            zlib
-            URL https://github.com/madler/zlib/releases/download/v1.3.2/zlib132.zip
-            URL_HASH SHA256=e8bf55f3017aa181690990cb58a994e77885da140609fc8f94abe9b65d2cae28
-            DOWNLOAD_NO_PROGRESS TRUE
-            SYSTEM
-            EXCLUDE_FROM_ALL)
+if(ZLIB_SUPPORT)
+    find_package(ZLIB 1.3.2 QUIET)
+    if(NOT ZLIB_FOUND)
+        FetchContent_Declare(
+                zlib
+                URL https://github.com/madler/zlib/releases/download/v1.3.2/zlib132.zip
+                URL_HASH SHA256=e8bf55f3017aa181690990cb58a994e77885da140609fc8f94abe9b65d2cae28
+                DOWNLOAD_NO_PROGRESS TRUE
+                SYSTEM
+                EXCLUDE_FROM_ALL)
 
-    set(CACHE{ZLIB_BUILD_EXAMPLES} TYPE BOOL FORCE VALUE OFF)
+        set(CACHE{ZLIB_BUILD_EXAMPLES} TYPE BOOL FORCE VALUE OFF)
+        set(CACHE{ZLIB_BUILD_TESTING} TYPE BOOL FORCE VALUE OFF)
 
-    FetchContent_MakeAvailable(zlib)
-    suppress_compilation_warnings("${zlib_SOURCE_DIR}")
+        FetchContent_MakeAvailable(zlib)
+        suppress_compilation_warnings("${zlib_SOURCE_DIR}")
+    endif()
+    set(HAVE_ZLIB_H TRUE)
 endif()
 
-find_package(bip2 CONFIG QUIET)
-if(NOT bzip2_FOUND)
-    FetchContent_Declare(
-            bzip2
-            GIT_REPOSITORY https://github.com/apwojcik/bzip2.git
-            GIT_TAG master
-            GIT_PROGRESS FALSE
-            GIT_SHALLOW TRUE
-            SYSTEM
-            EXCLUDE_FROM_ALL)
+if(BZIP2_SUPPORT)
+    find_package(bzip2 CONFIG QUIET)
+    if(NOT bzip2_FOUND)
+        FetchContent_Declare(
+                bzip2
+                GIT_REPOSITORY https://github.com/apwojcik/bzip2.git
+                GIT_TAG master
+                GIT_PROGRESS FALSE
+                GIT_SHALLOW TRUE
+                SYSTEM
+                EXCLUDE_FROM_ALL)
 
-    set(CACHE{ENABLE_DOCS} TYPE BOOL FORCE VALUE OFF)
-    set(CACHE{ENABLE_EXAMPLES} TYPE BOOL FORCE VALUE OFF)
-    set(CACHE{ENABLE_STATIC_LIB} TYPE BOOL FORCE VALUE ON)
-    set(CACHE{ENABLE_STATIC_LIB_IS_PIC} TYPE BOOL FORCE VALUE ON)
-    set(CACHE{ENABLE_TESTS} TYPE BOOL FORCE VALUE OFF)
+        set(CACHE{ENABLE_DOCS} TYPE BOOL FORCE VALUE OFF)
+        set(CACHE{ENABLE_EXAMPLES} TYPE BOOL FORCE VALUE OFF)
+        set(CACHE{ENABLE_STATIC_LIB} TYPE BOOL FORCE VALUE ON)
+        set(CACHE{ENABLE_STATIC_LIB_IS_PIC} TYPE BOOL FORCE VALUE ON)
+        set(CACHE{ENABLE_TESTS} TYPE BOOL FORCE VALUE OFF)
+        set(CACHE{ENABLE_APP} TYPE BOOL FORCE VALUE OFF)
+        set(CACHE{ENABLE_SHARED_LIB} TYPE BOOL FORCE VALUE OFF)
 
-    FetchContent_MakeAvailable(bzip2)
-    suppress_compilation_warnings("${bzip2_SOURCE_DIR}")
+        FetchContent_MakeAvailable(bzip2)
+        suppress_compilation_warnings("${bzip2_SOURCE_DIR}")
+    endif()
+    set(HAVE_LIBBZ2 TRUE)
 endif()
 
 # libgcrypt: optional; crypto.c is always compiled and self-guards on
@@ -198,6 +211,13 @@ endif()
 # doesn't claim support that isn't backed by a compiled backend.
 if(WAV_SUPPORT AND (APPLE OR audiofile_FOUND))
     set(HAVE_WAV_BACKEND TRUE)
+endif()
+if(HAVE_WAV_BACKEND AND APPLE)
+    set(HAVE_MACOS_NATIVE_WAV TRUE)
+    set(WAV_INTERNAL_MACOS TRUE)
+elseif(HAVE_WAV_BACKEND)
+    set(HAVE_LIB_AUDIOFILE TRUE)
+    set(WAV_INTERNAL_AUDIOFILE TRUE)
 endif()
 
 if(WIN32)
@@ -301,10 +321,11 @@ add_library(spectrum
     warajevo_read.c
     z80.c
     z80em.c
-    zip.c
-    zip.h
-    zlib.c
     zxs.c)
+
+if(HAVE_ZLIB_H)
+    target_sources(spectrum PRIVATE zip.c zip.h zlib.c)
+endif()
 
 if(APPLE)
     # Universal binary not supported, only Apple silicon
@@ -329,8 +350,32 @@ if(HAVE_GCRYPT_H)
     target_include_directories(spectrum PRIVATE ${GCRYPT_INCLUDE_DIR})
 endif()
 
-target_link_libraries(spectrum PRIVATE ZLIB::ZLIBSTATIC
-        bzip2::bz2_static ${LIBSPECTRUM_OPTIONAL_LIBS})
+if(HAVE_ZLIB_H)
+    target_link_libraries(spectrum PRIVATE ZLIB::ZLIBSTATIC)
+endif()
+if(HAVE_LIBBZ2)
+    target_link_libraries(spectrum PRIVATE bzip2::bz2_static)
+endif()
+target_link_libraries(spectrum PRIVATE ${LIBSPECTRUM_OPTIONAL_LIBS})
+
+# libspectrum_la_LIBADD has -lm.
+if(NOT WIN32)
+    target_link_libraries(spectrum PRIVATE m)
+endif()
+
+# AM_CFLAGS = -fvisibility=hidden; LIBSPECTRUM_EXPORTS marks the public API.
+set_target_properties(spectrum PROPERTIES C_VISIBILITY_PRESET hidden)
+
+# configure.ac warning flags for GCC (and Clang, which accepts the same ones).
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(spectrum PRIVATE
+        -Wall -Wextra -Wsign-compare -Wwrite-strings)
+    if(LIBSPECTRUM_ENABLE_WARNINGS)
+        target_compile_options(spectrum PRIVATE
+            -Wstrict-prototypes -Wmissing-prototypes -Winline -Wshadow
+            -Wpointer-arith -Wcast-qual -Wcast-align -Waggregate-return)
+    endif()
+endif()
 
 if(HAVE_WAV_BACKEND)
     target_sources(spectrum PRIVATE wav.c wav_internals.h)
@@ -417,3 +462,111 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libspectrum.pc.in
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libspectrum.pc
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+# --- Tests --------------------------------------------------------------
+# Mirrors test/Makefile.am: test/test links a static copy of the library so
+# it can reach private helpers (hidden in the shared library), and runs from
+# the build directory because DYNAMIC_TEST_PATH() is relative to it.
+
+if(LIBSPECTRUM_BUILD_TESTS)
+    enable_testing()
+
+    # Same sources/flags as the spectrum target, always static and with
+    # default visibility.
+    set(_test_props SOURCES INCLUDE_DIRECTORIES COMPILE_DEFINITIONS
+                    COMPILE_OPTIONS)
+    add_library(spectrum_test STATIC EXCLUDE_FROM_ALL)
+    foreach(_p IN LISTS _test_props)
+        get_target_property(_v spectrum ${_p})
+        if(NOT _v STREQUAL "_v-NOTFOUND")
+            set_property(TARGET spectrum_test PROPERTY ${_p} ${_v})
+        endif()
+    endforeach()
+    # target_link_libraries (not the property) so a static library's private
+    # dependencies are propagated to whatever links it.
+    get_target_property(_libs spectrum LINK_LIBRARIES)
+    if(NOT _libs STREQUAL "_libs-NOTFOUND")
+        target_link_libraries(spectrum_test PRIVATE ${_libs})
+    endif()
+    # The Windows resource/DLL entry sources only make sense in the DLL.
+    get_target_property(_srcs spectrum_test SOURCES)
+    list(FILTER _srcs EXCLUDE REGEX "(^|/)(dll\\.c|windres\\.rc)$")
+    set_property(TARGET spectrum_test PROPERTY SOURCES ${_srcs})
+    set_target_properties(spectrum_test PROPERTIES C_VISIBILITY_PRESET default)
+
+    set(LIBSPECTRUM_TEST_FIXTURES
+        ${CMAKE_CURRENT_BINARY_DIR}/test/complete-tzx.tzx
+        ${CMAKE_CURRENT_BINARY_DIR}/test/wav-mono-threshold.wav
+        ${CMAKE_CURRENT_BINARY_DIR}/test/wav-stereo-mixdown.wav)
+
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test)
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/test/complete-tzx.tzx
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/complete-tzx.py
+                > ${CMAKE_CURRENT_BINARY_DIR}/test/complete-tzx.tzx
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test/complete-tzx.py
+        VERBATIM)
+    foreach(_kind mono-threshold stereo-mixdown)
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/test/wav-${_kind}.wav
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/wav-fixtures.py
+                    ${_kind} > ${CMAKE_CURRENT_BINARY_DIR}/test/wav-${_kind}.wav
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test/wav-fixtures.py
+            VERBATIM)
+    endforeach()
+
+    add_executable(libspectrum_test EXCLUDE_FROM_ALL
+        test/buffer.c
+        test/capabilities.c
+        test/common.c
+        test/creator.c
+        test/edges.c
+        test/file.c
+        test/main.c
+        test/microdrive.c
+        test/registry.c
+        test/rzx.c
+        test/snap-memory.c
+        test/snap-peripherals.c
+        test/snap-read.c
+        test/snap-storage.c
+        test/snap-z80.c
+        test/szx.c
+        test/tape-edges.c
+        test/tape-iterator.c
+        test/tape.c
+        test/pzx-write.c
+        test/csw-write.c
+        test/tap-pzx.c
+        test/timings.c
+        test/utilities.c
+        test/identify.c
+        ${LIBSPECTRUM_TEST_FIXTURES})
+    set_target_properties(libspectrum_test PROPERTIES
+        OUTPUT_NAME test
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test)
+    target_compile_definitions(libspectrum_test PRIVATE
+        SRCDIR="${CMAKE_CURRENT_SOURCE_DIR}" LIBSPECTRUM_EXPORTS)
+    target_include_directories(libspectrum_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+    if(LIBSPECTRUM_C23_FLAGS)
+        target_compile_options(libspectrum_test PRIVATE ${LIBSPECTRUM_C23_FLAGS})
+    endif()
+    target_link_libraries(libspectrum_test PRIVATE spectrum_test)
+    if(HAVE_LIB_GLIB)
+        target_link_libraries(libspectrum_test PRIVATE PkgConfig::GLIB)
+    endif()
+    if(HAVE_GCRYPT_H)
+        target_include_directories(libspectrum_test PRIVATE ${GCRYPT_INCLUDE_DIR})
+    endif()
+
+    # `make check` equivalent: builds then runs the suite.
+    add_test(NAME build_libspectrum_test
+             COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
+                     --target libspectrum_test --config $<CONFIG>)
+    set_tests_properties(build_libspectrum_test PROPERTIES FIXTURES_SETUP libspectrum_test_built)
+    add_test(NAME libspectrum
+             COMMAND libspectrum_test
+             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    set_tests_properties(libspectrum PROPERTIES FIXTURES_REQUIRED libspectrum_test_built)
+endif()

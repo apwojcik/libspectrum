@@ -372,7 +372,8 @@ libspectrum_identify_file_with_class(
   const char *filename, const unsigned char *buffer, size_t length )
 {
   libspectrum_error error;
-  char *new_filename = nullptr; unsigned char *new_buffer; size_t new_length;
+  char *new_filename = nullptr; unsigned char *new_buffer = nullptr;
+  size_t new_length;
 
   error = libspectrum_identify_file_raw( type, filename, buffer, length );
   if( error ) return error;
@@ -441,6 +442,8 @@ libspectrum_identify_file_raw( libspectrum_id_t *type, const char *filename,
       { LIBSPECTRUM_ID_SNAPSHOT_Z80,  "slt", 3, "\0\0",		    6, 2, 1 },
       { LIBSPECTRUM_ID_SNAPSHOT_ZXS,  "zxs", 3, "SNAP",		    8, 4, 4 },
       { LIBSPECTRUM_ID_SNAPSHOT_PLUSD,"mgtsnp", 3, nullptr,	    0, 0, 0 },
+      { LIBSPECTRUM_ID_SNAPSHOT_EZX,  "ezx", 3, "Emuz",		    0, 4, 4 },
+      { LIBSPECTRUM_ID_SNAPSHOT_EZX,  "ezx", 3, "EZX",		    0, 3, 3 },
 
       { LIBSPECTRUM_ID_CARTRIDGE_DCK, "dck", 3, nullptr,		    0, 0, 0 },
       { LIBSPECTRUM_ID_CARTRIDGE_IF2, "rom", 3, nullptr,		    0, 0, 0 },
@@ -634,6 +637,7 @@ libspectrum_identify_class( libspectrum_class_t *libspectrum_class,
   case LIBSPECTRUM_ID_RECORDING_RZX:
     *libspectrum_class = LIBSPECTRUM_CLASS_RECORDING; return 0;
 
+  case LIBSPECTRUM_ID_SNAPSHOT_EZX:
   case LIBSPECTRUM_ID_SNAPSHOT_PLUSD:
   case LIBSPECTRUM_ID_SNAPSHOT_SNA:
   case LIBSPECTRUM_ID_SNAPSHOT_SNP:
@@ -680,10 +684,12 @@ libspectrum_identify_class( libspectrum_class_t *libspectrum_class,
 }
 
 libspectrum_error
-libspectrum_uncompress_file( unsigned char **new_buffer, size_t *new_length,
+libspectrum_uncompress_file( unsigned char **new_buffer GCC_UNUSED,
+                             size_t *new_length,
 			     char **new_filename, libspectrum_id_t type,
-			     const unsigned char *old_buffer,
-			     size_t old_length, const char *old_filename )
+			     const unsigned char *old_buffer GCC_UNUSED,
+			     size_t old_length GCC_UNUSED,
+                             const char *old_filename )
 {
   libspectrum_class_t class;
   libspectrum_error error;

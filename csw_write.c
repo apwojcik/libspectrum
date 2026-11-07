@@ -242,6 +242,9 @@ find_recording( libspectrum_tape *tape, int *initial_high )
       if( libspectrum_tape_block_type( block ) == LIBSPECTRUM_TAPE_BLOCK_TZX_CSW &&
           libspectrum_tape_block_pause_tstates( block ) ) return nullptr;
       recording = block;
+      if( libspectrum_tape_block_type( block ) == LIBSPECTRUM_TAPE_BLOCK_RLE_PULSE &&
+          libspectrum_tape_block_level( block ) != -1 )
+        *initial_high = libspectrum_tape_block_level( block );
       break;
     default: return nullptr;
     }
@@ -265,9 +268,6 @@ copy_recording( csw_writer *writer, libspectrum_tape_block *block )
     if( writer->pulses == UINT32_MAX ) return LIBSPECTRUM_ERROR_INVALID;
     writer->pulses++;
   }
-  /* Match the existing TZX single-pulse CSW playback convention. */
-  if( libspectrum_tape_block_type( block ) == LIBSPECTRUM_TAPE_BLOCK_TZX_CSW &&
-      writer->pulses == 1 ) writer->initial_high = !writer->initial_high;
   if( length ) libspectrum_buffer_write( writer->body, data, length );
   return LIBSPECTRUM_ERROR_NONE;
 }

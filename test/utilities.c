@@ -23,8 +23,11 @@
 
 #include "config.h"
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "internals.h"
 #include "test.h"
@@ -59,13 +62,29 @@ mmc_high_bit_command_arguments( void )
   libspectrum_mmc_card *card = NULL;
   const char *filename = "test-mmc-dword.hdf";
   FILE *file;
+  int fd, flags = O_WRONLY | O_CREAT | O_EXCL;
   test_return_t r = TEST_INCOMPLETE;
   size_t i, j;
   static const libspectrum_dword arguments[] = { 0x80000001, 0xffffffff };
 
-  /* C11 exclusive creation avoids overwriting an existing file. */
-  file = fopen( filename, "wbx" );
-  if( !file ) return r;
+  /* Avoid overwriting an existing file, without relying on C11 fopen modes
+     that older Windows runtimes do not support. */
+#ifdef O_BINARY
+  flags |= O_BINARY;
+#endif
+  fd = open( filename, flags, 0600 );
+  if( fd < 0 ) {
+    fprintf( stderr, "%s: unable to create %s: %s\n",
+             progname, filename, strerror( errno ) );
+    return r;
+  }
+  file = fdopen( fd, "wb" );
+  if( !file ) {
+    fprintf( stderr, "%s: unable to open stream for %s: %s\n",
+             progname, filename, strerror( errno ) );
+    close( fd );
+    goto done;
+  }
   memset( &header, 0, sizeof( header ) );
   memcpy( header.signature, "RS-IDE", 6 );
   header.id = 0x1a;
@@ -75,12 +94,22 @@ mmc_high_bit_command_arguments( void )
   header.drive_identity[6] = 1;
   header.drive_identity[12] = 1;
   if( fwrite( &header, 1, sizeof( header ), file ) != sizeof( header ) ) {
+    fprintf( stderr, "%s: unable to write %s: %s\n",
+             progname, filename, strerror( errno ) );
     fclose( file );
     goto done;
   }
-  if( fclose( file ) ) goto done;
+  if( fclose( file ) ) {
+    fprintf( stderr, "%s: unable to close %s: %s\n",
+             progname, filename, strerror( errno ) );
+    goto done;
+  }
   card = libspectrum_mmc_alloc();
-  if( libspectrum_mmc_insert( card, filename ) ) goto done;
+  if( libspectrum_mmc_insert( card, filename ) ) {
+    fprintf( stderr, "%s: unable to insert MMC image %s\n",
+             progname, filename );
+    goto done;
+  }
   r = TEST_FAIL;
   for( j = 0; j < sizeof( arguments ) / sizeof( arguments[0] ); j++ ) {
     libspectrum_dword argument = arguments[j];

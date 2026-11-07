@@ -108,20 +108,13 @@ libspectrum_csw_read( libspectrum_tape *tape,
     memcpy( csw_block->data, buffer, length );
   }
   if( !csw_block->length ) goto csw_empty;
-  /* Standalone CSW starts at its header polarity, without an initial edge.
-     Exact-rate RLE playback inherits this level, like a TZX CSW recording. */
-  if( initial_high ) {
-    libspectrum_tape_block *level =
-      libspectrum_tape_block_alloc( LIBSPECTRUM_TAPE_BLOCK_SET_SIGNAL_LEVEL );
-    libspectrum_tape_block_set_level( level, 1 );
-    libspectrum_error error = libspectrum_tape_append_block( tape, level );
-    if( error ) {
-      libspectrum_tape_block_free( level );
-      libspectrum_tape_block_free( block );
-      return error;
-    }
+  /* Unlike embedded TZX CSW, standalone CSW specifies its first run level. */
+  libspectrum_tape_block_set_level( block, initial_high );
+  {
+    libspectrum_error error = libspectrum_tape_append_block( tape, block );
+    if( error ) libspectrum_tape_block_free( block );
+    return error;
   }
-  return libspectrum_tape_append_block( tape, block );
 
 csw_bad_compress:
   libspectrum_free( block );

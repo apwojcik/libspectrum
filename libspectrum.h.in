@@ -125,6 +125,46 @@ LIBSPECTRUM_CAPABILITIES
 /* Initialisation */
 
 LIBSPECTRUM_API libspectrum_error libspectrum_init( void );
+
+/* Raw PCM WAV I/O. Readers return signed 16-bit mono without resampling;
+   channels are quantized then averaged equally (truncating toward zero).
+   Writers accept unsigned bytes or native-endian signed words and emit LE PCM.
+   Open failure leaves the output handle NULL; successful handles belong to the
+   caller until close, which releases them even on error. See doc/libspectrum.txt
+   for supported formats, quantization and full I/O/error semantics. */
+#define LIBSPECTRUM_SUPPORTS_WAV_PCM_IO 1
+
+typedef struct libspectrum_wav_reader libspectrum_wav_reader;
+typedef struct libspectrum_wav_writer libspectrum_wav_writer;
+
+typedef enum libspectrum_wav_sample_format {
+  LIBSPECTRUM_WAV_SAMPLE_UNSIGNED_8,
+  LIBSPECTRUM_WAV_SAMPLE_SIGNED_16
+} libspectrum_wav_sample_format;
+
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_reader_open( libspectrum_wav_reader **reader,
+  const char *filename, size_t *sample_rate, size_t *frame_count );
+/* EOF is success with a short read; declared-data truncation is an error.
+   frames_read counts complete output frames, even when returning an error. */
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_reader_read( libspectrum_wav_reader *reader,
+  libspectrum_signed_word *samples, size_t frames, size_t *frames_read );
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_reader_close( libspectrum_wav_reader *reader );
+/* Exact frame_count is required. filename == NULL selects stdout (never
+   closed); no seeking is needed. Classic RIFF size limits include padding. */
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_writer_open( libspectrum_wav_writer **writer,
+  const char *filename, size_t sample_rate, libspectrum_wav_sample_format format,
+  size_t frame_count );
+/* All frames are accepted or an error returned. After failure, only close
+   is supported. Close checks missing frames, padding and output/flush errors. */
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_writer_write( libspectrum_wav_writer *writer,
+  const void *samples, size_t frames );
+LIBSPECTRUM_API libspectrum_error
+libspectrum_wav_writer_close( libspectrum_wav_writer *writer );
 LIBSPECTRUM_API void libspectrum_end( void );
 
 /* Version checking */
@@ -276,6 +316,7 @@ typedef enum libspectrum_id_t LIBSPECTRUM_ENUM_INT {
 
   /* Below here, present only in FUTURE version */
   LIBSPECTRUM_ID_SNAPSHOT_DSNAP,		/* .S snapshot (D40/D80) */
+  LIBSPECTRUM_ID_SNAPSHOT_EZX,		/* .ezx snapshot (EmuZWin) */
 
 } libspectrum_id_t;
 
@@ -559,6 +600,9 @@ libspectrum_creator_alloc( void );
 LIBSPECTRUM_API libspectrum_error
 libspectrum_creator_free( libspectrum_creator *creator );
 
+/* Program names are UTF-8, limited to 31 bytes at a character boundary.
+   SZX writes UTF-8; RZX export transliterates to ASCII with '?' fallback.
+   Custom creator data is binary and remains unchanged. */
 LIBSPECTRUM_API libspectrum_error
 libspectrum_creator_set_program( libspectrum_creator *creator,
 				 const char *program );
@@ -734,6 +778,10 @@ typedef enum libspectrum_tape_state_type LIBSPECTRUM_ENUM_INT {
 /* Routines to manipulate tape blocks */
 LIBSPECTRUM_API libspectrum_tape_block*
 libspectrum_tape_block_alloc( libspectrum_tape_type type );
+
+/* Ordinary tape metadata text/texts is UTF-8. Setters accept
+   UTF-8; readers/writers convert TZX CP1252 with lossy substitution.
+   CUSTOM identifiers and binary payloads are not converted. */
 LIBSPECTRUM_API libspectrum_error
 libspectrum_tape_block_free( libspectrum_tape_block *block );
 LIBSPECTRUM_API libspectrum_tape_type

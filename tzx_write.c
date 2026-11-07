@@ -93,6 +93,62 @@ tzx_write_bytes( libspectrum_buffer* buffer, size_t length, size_t length_bytes,
 static void
 tzx_write_string( libspectrum_buffer* buffer, char *string );
 
+/* Convert a shallow copy so export never changes caller-owned UTF-8 text.
+   Length limits apply to the encoded CP1252 bytes, not the UTF-8 input. */
+static libspectrum_error
+write_text_block( libspectrum_tape_block *block, libspectrum_buffer *buffer )
+{
+  libspectrum_tape_block copy = *block;
+  libspectrum_tape_type type = libspectrum_tape_block_type( block );
+  size_t count = type == LIBSPECTRUM_TAPE_BLOCK_ARCHIVE_INFO ||
+                 type == LIBSPECTRUM_TAPE_BLOCK_SELECT ?
+                 libspectrum_tape_block_count( block ) : 1;
+  char **strings;
+  size_t i, total = 1 + 3 * count;
+  libspectrum_error error = LIBSPECTRUM_ERROR_NONE;
+  if( count > 255 ) return LIBSPECTRUM_ERROR_INVALID;
+  strings = libspectrum_new( char *, count );
+  for( i = 0; i < count; i++ ) {
+    const char *text = type == LIBSPECTRUM_TAPE_BLOCK_ARCHIVE_INFO ||
+                       type == LIBSPECTRUM_TAPE_BLOCK_SELECT ?
+                       libspectrum_tape_block_texts( block, i ) :
+                       libspectrum_tape_block_text( block );
+    if( !text && type != LIBSPECTRUM_TAPE_BLOCK_GROUP_START )
+      error = LIBSPECTRUM_ERROR_INVALID;
+    internal_tape_text_convert( text, 0, &strings[i] );
+    if( strlen( strings[i] ) > 255 ) error = LIBSPECTRUM_ERROR_INVALID;
+    total += strlen( strings[i] );
+  }
+  if( type == LIBSPECTRUM_TAPE_BLOCK_ARCHIVE_INFO ||
+      type == LIBSPECTRUM_TAPE_BLOCK_SELECT )
+    libspectrum_tape_block_set_texts( &copy, strings );
+  else
+    libspectrum_tape_block_set_text( &copy, strings[0] );
+  if( !error ) {
+    switch( type ) {
+    case LIBSPECTRUM_TAPE_BLOCK_GROUP_START: tzx_write_group_start( &copy, buffer ); break;
+    case LIBSPECTRUM_TAPE_BLOCK_COMMENT: tzx_write_comment( &copy, buffer ); break;
+    case LIBSPECTRUM_TAPE_BLOCK_MESSAGE:
+      if( libspectrum_tape_block_pause( &copy ) / 1000 > 255 )
+        error = LIBSPECTRUM_ERROR_INVALID;
+      else tzx_write_message( &copy, buffer );
+      break;
+    case LIBSPECTRUM_TAPE_BLOCK_SELECT:
+      if( total > 65535 ) error = LIBSPECTRUM_ERROR_INVALID;
+      else tzx_write_select( &copy, buffer );
+      break;
+    case LIBSPECTRUM_TAPE_BLOCK_ARCHIVE_INFO:
+      error = validate_archive_info( &copy );
+      if( !error ) tzx_write_archive_info( &copy, buffer );
+      break;
+    default: error = LIBSPECTRUM_ERROR_LOGIC; break;
+    }
+  }
+  for( i = 0; i < count; i++ ) libspectrum_free( strings[i] );
+  libspectrum_free( strings );
+  return error;
+}
+
 /*** Function definitions ***/
 
 /* The main write function */
@@ -154,7 +210,12 @@ internal_tzx_write( libspectrum_buffer* buffer, libspectrum_tape *tape )
       }
       break;
     case LIBSPECTRUM_TAPE_BLOCK_GROUP_START:
-      tzx_write_group_start( block, buffer );
+    case LIBSPECTRUM_TAPE_BLOCK_SELECT:
+    case LIBSPECTRUM_TAPE_BLOCK_COMMENT:
+    case LIBSPECTRUM_TAPE_BLOCK_MESSAGE:
+    case LIBSPECTRUM_TAPE_BLOCK_ARCHIVE_INFO:
+      error = write_text_block( block, buffer );
+      if( error ) return error;
       break;
 
     case LIBSPECTRUM_TAPE_BLOCK_GROUP_END:
@@ -170,33 +231,12 @@ internal_tzx_write( libspectrum_buffer* buffer, libspectrum_tape *tape )
       tzx_write_empty_block( buffer, libspectrum_tape_block_type( block ) );
       break;
 
-    case LIBSPECTRUM_TAPE_BLOCK_SELECT:
-      tzx_write_select( block, buffer );
-      break;
-
     case LIBSPECTRUM_TAPE_BLOCK_STOP48:
       tzx_write_stop( buffer );
       break;
 
     case LIBSPECTRUM_TAPE_BLOCK_SET_SIGNAL_LEVEL:
       tzx_write_set_signal_level( block, buffer );
-      break;
-
-    case LIBSPECTRUM_TAPE_BLOCK_COMMENT:
-      if( !libspectrum_tape_block_text( block ) ||
-          strlen( libspectrum_tape_block_text( block ) ) > 255 )
-        return LIBSPECTRUM_ERROR_INVALID;
-      tzx_write_comment( block, buffer );
-      break;
-
-    case LIBSPECTRUM_TAPE_BLOCK_MESSAGE:
-      tzx_write_message( block, buffer );
-      break;
-
-    case LIBSPECTRUM_TAPE_BLOCK_ARCHIVE_INFO:
-      error = validate_archive_info( block );
-      if( error ) return error;
-      tzx_write_archive_info( block, buffer );
       break;
 
     case LIBSPECTRUM_TAPE_BLOCK_HARDWARE:
@@ -220,6 +260,12 @@ internal_tzx_write( libspectrum_buffer* buffer, libspectrum_tape *tape )
         csw.type = LIBSPECTRUM_TAPE_BLOCK_TZX_CSW;
         csw.types.tzx_csw.rle = block->types.rle_pulse;
         csw.types.tzx_csw.compression = 1;
+        if( block->types.rle_pulse.has_initial_level ) {
+          libspectrum_tape_block level = { 0 };
+          level.type = LIBSPECTRUM_TAPE_BLOCK_SET_SIGNAL_LEVEL;
+          level.types.set_signal_level.level = block->types.rle_pulse.initial_level;
+          tzx_write_set_signal_level( &level, buffer );
+        }
         error = tzx_write_csw( &csw, buffer );
       } else {
         error = tzx_write_rle( block, buffer, tape, iterator );
@@ -547,10 +593,9 @@ tzx_write_select( libspectrum_tape_block *block, libspectrum_buffer *buffer )
 {
   size_t count, total_length, i;
 
-  /* The id byte, the total length (2 bytes), the count byte,
-     and ( 2 offset bytes and 1 length byte ) per selection */
+  /* The length excludes the ID and its own two bytes. */
   count = libspectrum_tape_block_count( block );
-  total_length = 4 + 3 * count;
+  total_length = 1 + 3 * count;
 
   for( i = 0; i < count; i++ )
     total_length += strlen( (char*)libspectrum_tape_block_texts( block, i ) );
@@ -606,7 +651,8 @@ static void
 tzx_write_message( libspectrum_tape_block *block, libspectrum_buffer *buffer )
 {
   libspectrum_buffer_write_byte( buffer, LIBSPECTRUM_TAPE_BLOCK_MESSAGE );
-  libspectrum_buffer_write_byte( buffer, libspectrum_tape_block_pause( block ) );
+  libspectrum_buffer_write_byte( buffer,
+                                libspectrum_tape_block_pause( block ) / 1000 );
   tzx_write_string( buffer, libspectrum_tape_block_text( block ) );
 }
 
@@ -784,7 +830,8 @@ tzx_write_rle( libspectrum_tape_block *block, libspectrum_buffer *buffer,
   libspectrum_set_pause_ms( raw_block, 0 );
 
   rle_state.bits_used = 0;
-  rle_state.level = 0;
+  rle_state.level = block->types.rle_pulse.has_initial_level ?
+    block->types.rle_pulse.initial_level : 0;
   rle_state.length = 0;
   rle_state.tape_length = 8192;
   rle_state.tape_buffer = libspectrum_new( libspectrum_byte, rle_state.tape_length );

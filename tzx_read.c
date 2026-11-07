@@ -622,7 +622,7 @@ tzx_read_generalised_data( libspectrum_tape *tape,
   }
 
   /* Check this much data exists */
-  if( end - (*ptr) < length ) {
+  if( (size_t)( end - *ptr ) < length ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_CORRUPT,
 			     "%s: not enough data in buffer", __func__ );
     return LIBSPECTRUM_ERROR_CORRUPT;
@@ -1220,7 +1220,7 @@ tzx_read_string( const libspectrum_byte **ptr, const libspectrum_byte *end,
 {
   size_t length;
   libspectrum_error error;
-  char *ptr2;
+  char *ptr2, *utf8;
 
   error = tzx_read_data( ptr, end, &length, -1, (libspectrum_byte**)dest );
   if( error ) return error;
@@ -1231,5 +1231,9 @@ tzx_read_string( const libspectrum_byte **ptr, const libspectrum_byte *end,
   /* Translate line endings */
   for( ptr2 = (*dest); *ptr2; ptr2++ ) if( *ptr2 == '\r' ) *ptr2 = '\n';
 
+  error = internal_tape_text_convert( *dest, 1, &utf8 );
+  if( error ) return error;
+  libspectrum_free( *dest );
+  *dest = utf8;
   return LIBSPECTRUM_ERROR_NONE;
 }

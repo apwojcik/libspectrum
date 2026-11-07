@@ -27,7 +27,7 @@ sudo cmake --install build
 
 Useful options (see `.github/workflows/build_linux_sub.yml` / `build_windows_sub.yml` for the exact combinations CI exercises):
 
-- `-DZLIB_SUPPORT=OFF`, `-DBZIP2_SUPPORT=OFF`, `-DLIBGCRYPT_SUPPORT=OFF`, `-DWAV_SUPPORT=OFF` — disable optional dependencies.
+- `-DZLIB_SUPPORT=OFF`, `-DBZIP2_SUPPORT=OFF`, `-DLIBGCRYPT_SUPPORT=OFF`, `-DICONV_SUPPORT=OFF` — disable optional dependencies. WAV is always built; `-DWAV_BACKEND=macos` selects the native macOS reader instead of the portable PCM one.
 - `-DUSE_FAKE_GLIB=ON` — use the internal GLib replacement (`myglib/`) instead of real GLib (default on Windows); this is how Windows/Cygwin and the Wii cross-build are configured, so changes touching glib-backed data structures (hash tables, slists, atomics) need to work under both real and fake glib.
 - `-DLIBSPECTRUM_ENABLE_WARNINGS=ON` — extra GCC/Clang warnings.
 

@@ -351,8 +351,14 @@ typedef struct libspectrum_tape_rle_pulse_block {
   size_t length;
   libspectrum_byte *data;
   long scale;
-  /* Nonzero for CSW: preserve the exact samples/second. Zero means use scale. */
+  /* Nonzero for sampled recordings: exact samples/second. Zero uses scale. */
   libspectrum_dword sample_rate;
+  /* Optional absolute level of the first run. The public level accessor uses
+     -1 for the existing playback convention, 0 for low and 1 for high.
+     Zero-initialised blocks keep their legacy behaviour. These fields are
+     ignored in the embedded TZX CSW member, which inherits the tape level. */
+  int has_initial_level;
+  int initial_level;
 
 } libspectrum_tape_rle_pulse_block;
 

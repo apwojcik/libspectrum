@@ -1,4 +1,4 @@
-libspectrum 1.7.0
+libspectrum 1.8.0
 =================
 
 libspectrum is a fairly simple library designed to make the handling
@@ -8,7 +8,7 @@ handles:
 * Snapshots: .z80, .szx, .sna (all read/write), .zxs, .sp., .snp and
   +D snapshots (read only).
 * Tape images: .tzx, .tap, .spc, .sta, .ltp and .pzx (read/write); CSW v1/v2
-  (read) and v2 (write); Warajevo .tap and Z80Em (read only).
+  (read) and v2 (write); Warajevo .tap, Z80Em and WAV audio (read only).
 * Input recordings: .rzx (read/write).
 * Disk images: .dsk (both plain and extended), .d40, .d80, .fdi, .img, .mgt,
   .opd, .sad, .scl, .td0, .trd and .udi (identification only).
@@ -45,9 +45,81 @@ not be defined.
 
 Bzip2 compression is similarly covered by LIBSPECTRUM_SUPPORTS_BZ2_COMPRESSION.
 
-WAV file support is covered by LIBSPECTRUM_SUPPORTS_WAV.
-LIBSPECTRUM_SUPPORTS_AUDIOFILE remains defined as a deprecated compatibility
-alias for older code, but new code should use LIBSPECTRUM_SUPPORTS_WAV.
+WAV file input is always supported. LIBSPECTRUM_SUPPORTS_WAV is defined
+and non-zero in every build.
+LIBSPECTRUM_SUPPORTS_AUDIOFILE is a deprecated compatibility alias;
+use LIBSPECTRUM_SUPPORTS_WAV.
+
+Raw PCM WAV I/O
+===============
+
+LIBSPECTRUM_SUPPORTS_WAV_PCM_IO is defined as 1 when the public raw WAV
+reader/writer API is available. Consumers should test this feature macro
+(and check for libspectrum_wav_writer_open when configuring linkage), rather
+than relying on LIBSPECTRUM_SUPPORTS_WAV, which predates this API.
+
+libspectrum_wav_reader_open(&reader, filename, &sample_rate, &frame_count)
+opens a seekable file and returns its original integer sample rate and mono
+output frame count. filename must not be NULL. The public reader uses the
+portable PCM decoder on every platform, independently of --with-wav-backend.
+It supports little-endian RIFF/WAVE integer PCM: unsigned 8-bit and signed
+16/24/32-bit, any nonzero channel count. Extensible PCM is supported only with
+the PCM GUID and full-width valid bits; channel masks are ignored. Float,
+compressed audio, RIFX and RF64 are not supported. Unknown chunks (including
+metadata) and even-boundary chunk padding are handled. Duplicate fmt/data
+chunks, partial frames and declared chunks outside the file are rejected.
+Empty audio is valid here (but remains invalid for WAV-to-tape loading).
+Seeking uses C long offsets, so large files can exceed the host seek range.
+
+libspectrum_wav_reader_read(reader, samples, frames, &frames_read) returns
+native signed 16-bit mono values without resampling. Unsigned 8-bit values
+are centred at 128 and multiplied by 256. Signed 24/32-bit values are reduced
+to their high 16 bits (floor toward negative infinity). Each channel is
+quantized first, then channels are averaged equally, truncating toward zero.
+There is no dithering, channel weighting or normalization. The caller owns
+the sample buffer and must provide space for frames values. EOF is success
+with a short read, including zero frames on subsequent calls. Truncated
+or malformed declared audio is an error, not EOF. frames_read is initialized
+to zero and counts completed frames even on a decoding error; after an I/O
+error close the handle rather than retrying.
+
+libspectrum_wav_writer_open(&writer, filename, sample_rate, format, frame_count)
+outputs mono unsigned 8-bit (LIBSPECTRUM_WAV_SAMPLE_UNSIGNED_8) or signed
+16-bit (LIBSPECTRUM_WAV_SAMPLE_SIGNED_16) PCM. The exact frame count must be
+known up front. The sample and byte rates must fit the WAV header, and the
+RIFF length, including the data pad byte, must fit an unsigned 32-bit integer.
+No RF64 or unknown-length output is provided. A non-NULL filename is opened
+in binary write mode; NULL selects stdout. Output need not be seekable.
+On Windows stdout is switched to binary mode and its previous mode restored
+on close. The caller must serialize access to stdout while a writer uses it.
+The library does not reject terminals or change the process SIGPIPE policy.
+
+libspectrum_wav_writer_write(writer, samples, frames) accepts caller-owned
+unsigned bytes or native-endian libspectrum_signed_word values, according to
+the selected format; output is always little-endian. It accepts all requested
+frames or returns an error (a failed write may already have emitted bytes).
+Writing beyond the declared count is an error. After any write failure only
+close is supported, not retry. A zero-frame write may use a NULL buffer.
+
+Both opens leave the output handle NULL on failure. All non-handle output
+pointers are required; sample buffers may be NULL only for zero-frame calls.
+All functions return LIBSPECTRUM_ERROR_NONE on success; unsupported encodings
+return UNKNOWN, malformed input CORRUPT, and invalid API arguments INVALID.
+Writer I/O failures return UNKNOWN; missing frames at close return INVALID.
+Reader stream/seek failures return LOGIC or UNKNOWN. The usual libspectrum
+allocator policy applies. Metadata outputs from a failed open must not be used.
+
+libspectrum_wav_reader_close(reader) and libspectrum_wav_writer_close(writer)
+always release the handle, even on failure; NULL close is a successful no-op.
+The library owns opened files but never closes stdout. Writer close detects
+missing frames, emits required zero padding on complete output, closes owned
+files or flushes stdout, and reports output/flush errors. Failed output is
+not removed. Close must be checked: successful writes can still fail during
+buffer flushing. Never use a handle after close.
+
+Existing WAV-to-tape loading still uses the configured backend. The optional
+macOS backend uses Core Audio conversion, so its accepted encodings and
+quantization need not match the public reader. It is not used by this API.
 
 Compression helpers
 ===================
@@ -396,6 +468,7 @@ LIBSPECTRUM_ID_SNAPSHOT_SZX     A .szx snapshot (as used by Spectaculator)
 LIBSPECTRUM_ID_SNAPSHOT_Z80	A .z80 snapshot
 LIBSPECTRUM_ID_SNAPSHOT_ZXS	A .zxs snapshot (as used by zx32)
 LIBSPECTRUM_ID_SNAPSHOT_DSNAP   A .S snapshot (as used by D40/D80)
+LIBSPECTRUM_ID_SNAPSHOT_EZX     A .ezx snapshot (as used by EmuZWin, read only)
 
 LIBSPECTRUM_ID_TAPE_CSW		A .csw tape image
 LIBSPECTRUM_ID_TAPE_TAP		A `normal' (Z80-style) .tap tape image
@@ -678,10 +751,21 @@ Free the memory used by a `libspectrum_creator' structure.
 libspectrum_error
 libspectrum_creator_set_program( libspectrum_creator *creator,
 				 const char *program )
-const libspectrum_byte*
-libspectrum_creator_program( libspectrum_creator *creator )
+const char*
+libspectrum_creator_program( const libspectrum_creator *creator )
 
-Set and retrieve the name of the program which created this file.
+Set and retrieve the creator's program name as NUL-terminated UTF-8.
+The setter replaces malformed sequences with `?' and retains at most
+31 bytes without splitting a UTF-8 character.
+
+SZX creator names are written as UTF-8 in their zero-padded 32-byte field.
+This is libspectrum's convention; the SZX specification does not define a
+character set. The snapshot reader does not expose SZX creator metadata.
+RZX specifies ASCII: output names are transliterated where iconv supports
+it, otherwise substituted with `?', then limited to the 20-byte field and
+zero-padded. RZX input names retain ASCII, replacing non-ASCII bytes with
+`?'. These conversions do not change the caller's creator object. Creator
+custom data remains binary and is not converted.
 
 libspectrum_error libspectrum_creator_set_major( libspectrum_creator *creator,
 						 libspectrum_word major )
@@ -1076,6 +1160,22 @@ identification process and can be set to NULL (or anything else) if
 `type' is not `LIBSPECTRUM_ID_UNKNOWN'. Snapshots compressed with
 bzip2 or gzip will be automatically and transparently decompressed.
 
+The read-only EmuZWin EZX reader restores CPU, RAM, embedded ROMs, AY,
+border/MIC and ROM-paging state. It also reads standard joystick assignments,
+7FFD/1FFD port values, additional RAM banks and Beta paging/seek direction.
+Additional banks and port values do not determine an extended machine model;
+machine selection remains based on the 48K lock and frame timing. Custom
+joystick bindings, axis inversion, embedded media, text/debugger metadata and
+ambiguous +D/Disciple controller state are not restored. EZX disk-operation
+coordinates are not treated as WD1793 register values. Joystick counts are
+masked with 3, matching EmuZWin's loader: the writer can store the Windows
+driver's supported slot count instead of the documented 0..2. A masked count
+of 3 is ignored; 0 clears the joystick setup. All chunk lengths and headers
+are strictly checked, including ignored tape and graphics data. Compressed
+files ("EZX") hold one or more blocks up to the end of the file, each a 32-bit
+length and an independent NRV2E stream of at most 512 KiB unpacked; the blocks
+are concatenated, with a 16 MiB aggregate resource limit.
+
 libspectrum_error
 libspectrum_snap_write( libspectrum_byte **buffer, size_t *length,
 			int *out_flags, libspectrum_snap *snap,
@@ -1153,8 +1253,8 @@ is `LIBSPECTRUM_ID_UNKNOWN', guess the file format via
 `libspectrum_identify_file'; `filename' is generally used only to help
 with the identification process and can be set to NULL (or anything
 else) if `type' is not `LIBSPECTRUM_ID_UNKNOWN' unless the tape is a
-WAV file where the underlying audiofile library will reread the
-file and will not use the buffer. Tape images compressed with
+WAV file, where the selected audio backend reads the file by filename
+rather than using the buffer. Tape images compressed with
 bzip2 or gzip will be automatically and transparently decompressed.
 
 libspectrum_error
@@ -1168,7 +1268,14 @@ into `*buffer'. On entry, '*buffer' is assumed to be allocated
 
 PZX output (LIBSPECTRUM_ID_TAPE_PZX) writes PZX version 1.0. It supports
 PULSE_SEQUENCE, DATA_BLOCK, PAUSE, STOP48, COMMENT (as BRWS), ARCHIVE_INFO
-(as PZXT) and CONCAT blocks, and converts ROM, TURBO and PURE_DATA blocks.
+(as PZXT) and CONCAT blocks, and converts ROM, TURBO, PURE_DATA, PURE_TONE,
+PULSES, RAW_DATA, RLE_PULSE, TZX_CSW and GENERALISED_DATA blocks.
+MESSAGE, HARDWARE and CUSTOM blocks are omitted, including message timing
+and all custom identifiers and payloads. They remain unchanged in the source
+tape but cannot be recovered from the PZX output. Omitted blocks still count
+in source jump offsets.
+SET_SIGNAL_LEVEL affects subsequent conversion without emitting a chunk.
+Paired, non-nested groups become BRWS points at their starts; ends are omitted.
 Conversion preserves existing pulse polarity and total duration. The existing
 post-data pulse is stored in DATA.tail, up to its 65535-T-state limit. Any
 remainder is stored in a PAUS block at the same level, without adding time
@@ -1191,8 +1298,17 @@ inspection, so conversion time is proportional to the number of pulses.
 Native-only output with explicit levels does not require playback.
 Currently, DATA blocks with zero-pulse bit sequences can be written only
 on that native-only path: playback inspection cannot handle them.
-Control flow, raw recordings, CSW, generalised data and explicit signal-level
-blocks are not converted; they are rejected rather than silently dropped.
+JUMP and finite, non-nested LOOP_START/LOOP_END paths are flattened in
+execution order. Jump offsets must fit signed 16 bits and count all source
+blocks, including metadata. Loop counts must be 2..65535. Jumps may skip a whole loop but may
+not enter or leave its body. Groups must remain paired and non-nested along
+the expanded path. Skipped source blocks and structures are still validated.
+Tapes with control flow are limited to 65536 source-block visits (including
+control and metadata blocks) and 64 MiB of expanded PZX output. Invalid
+targets, malformed structures, cycles and excessive expansion return
+LIBSPECTRUM_ERROR_INVALID. STOP and STOP48 markers are retained, with the
+following tape content also converted. Selections and calls/returns are not
+flattened; unsupported blocks return LIBSPECTRUM_ERROR_UNKNOWN.
 Unknown PZX blocks/keys already discarded or normalised by the reader
 cannot be reconstructed by the writer.
 
@@ -1493,14 +1609,27 @@ of one byte per pulse, or a zero byte followed by a little-endian dword
 for a long pulse. The claimed pulse count is available for inspection;
 TZX output writes a count derived from the stored pulse data.
 
-RLE_PULSE remains the generic block for scale-only recordings and for
-standalone CSW files. Loading a standalone CSW retains its exact sample
-rate on that block. Saving it as TZX emits a TZX_CSW block rather than a
-Direct Recording block; a scale-only RLE_PULSE still converts to Direct
-Recording. The standalone CSW initial-polarity flag is represented by a
-Set Signal Level block at the start of the tape when the flag is high.
-Exact-rate RLE playback starts at the incoming level, without an initial
-toggle; scale-only RLE blocks retain their legacy pulse behaviour.
+RLE_PULSE is the generic block for scale-only recordings, standalone CSW
+files and WAV audio. Loading CSW or WAV produces one RLE_PULSE block with
+an exact sample rate and explicit initial level. CSW retains its header
+polarity; WAV uses the level of its first decoded sample (positive is
+high, zero or negative is low). WAV sample runs are encoded as RLE
+counts, including the final run.
+Exact-rate playback carries fractional T-states between runs, so elapsed
+time is floor(total samples * 3500000 / sample_rate).
+
+For RLE_PULSE, the level accessor specifies the initial run level:
+-1 preserves the existing playback convention, 0 forces low and 1 forces
+high. New blocks default to -1. An explicit level overrides the incoming
+level without inserting a pulse or consuming time. Without an explicit
+level, exact-rate RLE playback starts at the incoming level without an
+initial toggle; scale-only blocks retain their legacy pulse behaviour.
+
+Saving exact-rate RLE_PULSE as TZX emits a TZX_CSW block rather than a
+Direct Recording block, preceded by Set Signal Level when the recording
+has an explicit initial level. A scale-only RLE_PULSE still converts to
+Direct Recording. Native TZX RAW_DATA blocks retain their integer
+T-states-per-sample timing and original direct-recording representation.
 TZX CSW has no polarity field: its first pulse inherits the current tape
 level. A zero pause adds no edge or level change of its own (the final
 pulse's boundary edge is still played); a nonzero pause ends low.
@@ -1604,6 +1733,36 @@ or
 libspectrum_error
 libspectrum_tape_block_set_<name>( libspectrum_tape_block *block,
 				   size_t index, <type> new_value )
+
+Tape text encodings
+
+libspectrum uses NUL-terminated UTF-8 for tape metadata: GROUP_START,
+COMMENT, MESSAGE, ARCHIVE_INFO and SELECT `text'/`texts' fields. Callers
+must supply UTF-8 to their setters.
+
+Readers and writers convert between UTF-8 and the format's character set:
+
+  TZX: Windows-1252 (CP1252), following real-world usage. The specification
+       names ISO-8859-1 (Latin-1).
+  PZX: UTF-8.
+
+On export, unsupported characters are transliterated where iconv supports
+it, otherwise replaced with `?'. Invalid character sequences are also
+replaced with `?'. Undefined CP1252 bytes are handled by the platform's
+converter when available; their conversion and transliteration may vary
+by platform. Metadata line
+endings are LF in the API and CR in TZX files. Writing leaves caller text
+unchanged; format length limits apply to the converted bytes.
+
+ZX Spectrum strings are a separate encoding, present in tape data such as
+ROM header filenames and BASIC programs, in Microdrive cartridge/file
+names, and in snapshot memory. These
+remain raw bytes, not UTF-8 metadata. Use libspectrum_zx_string_to_utf8()
+to render Spectrum strings, including graphics characters and BASIC tokens.
+
+CUSTOM identifiers, custom payloads and other binary data are not converted.
+CSW's encoding-application description is ASCII; it is not exposed as tape
+metadata by libspectrum.
 
 For TZX_CSW, sample_rate gives the exact samples per second, while scale
 is only an integer tstates-per-sample approximation. A zero sample_rate
@@ -1733,6 +1892,7 @@ int values[]				HARDWARE
 
 int level				DATA_BLOCK
 					PAUSE
+					RLE_PULSE
 					SET_SIGNAL_LEVEL
 
 libspectrum_byte bit0_pulse_count	DATA_BLOCK

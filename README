@@ -1,4 +1,4 @@
-libspectrum 1.7.0
+libspectrum 1.8.0
 =================
 
 libspectrum is a library which is designed to make the input and
@@ -42,8 +42,9 @@ Useful options (all given as -DNAME=VALUE):
   ZLIB_SUPPORT, BZIP2_SUPPORT   use zlib / bzip2 (default ON; fetched and
                                 built if not found on the system)
   LIBGCRYPT_SUPPORT             RZX signing support via libgcrypt (ON)
-  WAV_SUPPORT                   WAV support via libaudiofile or the native
-                                macOS frameworks (ON)
+  WAV_BACKEND                   auto, pcm (portable, the default) or macos
+                                (native macOS frameworks)
+  ICONV_SUPPORT                 use iconv for tape metadata text (ON)
   USE_FAKE_GLIB                 use the bundled GLib replacement instead
                                 of GLib (default ON on Windows)
   BUILD_SHARED_LIBS             build a shared library (ON)
@@ -63,6 +64,26 @@ For updates for libspectrum, its homepage is at:
 
 http://fuse-emulator.sourceforge.net/libspectrum.php
 
+WAV input
+---------
+
+WAV input uses a dependency-free standard C reader by default. Configure with
+-DWAV_BACKEND=pcm (also the default for auto) or macos (native macOS).
+WAV input is always enabled.
+
+The portable reader supports RIFF/WAVE unsigned 8-bit and signed 16-, 24-,
+and 32-bit integer PCM at any nonzero sample rate. Extensible PCM is accepted
+when valid bits equal container bits. Channels are averaged equally after
+conversion to signed 16-bit, without resampling; channel masks are ignored.
+Zero is low, positive is high, matching the native macOS tape decoder.
+Samples retain signed 16-bit precision for zero-crossing detection.
+
+Compressed audio, IEEE float, RIFX, RF64, multiple fmt/data chunks and partial
+frames are unsupported. RIFF sizes and odd-chunk padding are checked strictly.
+Files must be seekable and fit the host C library's long-based fseek/ftell
+range (typically below 2 GiB on Windows). Empty data is valid WAV but rejected
+by the tape decoder. The common decoder still holds all samples in memory.
+
 Compiling for the Wii
 ---------------------
 
@@ -71,12 +92,12 @@ To compile for the Wii, use the devkitPro CMake toolchain file:
 cmake -S . -B build \
       -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Wii.cmake \
       -DCMAKE_INSTALL_PREFIX=$DEVKITPPC \
-      -DLIBGCRYPT_SUPPORT=OFF -DUSE_FAKE_GLIB=ON -DWAV_SUPPORT=OFF
+      -DLIBGCRYPT_SUPPORT=OFF -DUSE_FAKE_GLIB=ON
 cmake --build build
 cmake --install build
 
-That is assuming you don't have libgcrypt, glib and libaudiofile for the
+That is assuming you don't have libgcrypt and glib for the
 Wii. At the time of writing, those haven't been ported yet.
 
 Philip Kendall <philip-fuse@shadowmagic.org.uk>
-16th September, 2026
+25th October, 2026

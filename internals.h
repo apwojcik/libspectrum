@@ -240,6 +240,9 @@ libspectrum_error
 libspectrum_plusd_read( libspectrum_snap *snap,
 			const libspectrum_byte *buffer, size_t buffer_length );
 libspectrum_error
+libspectrum_ezx_read( libspectrum_snap *snap, const libspectrum_byte *buffer,
+                      size_t length );
+libspectrum_error
 internal_sna_read( libspectrum_snap *snap,
 		   const libspectrum_byte *buffer, size_t buffer_length );
 libspectrum_error
@@ -449,6 +452,11 @@ extern const int LIBSPECTRUM_BITS_IN_BYTE;
 
 char*
 libspectrum_safe_strdup( const char *src );
+
+/* Metadata text conversion: 0 UTF-8 to CP1252, 1 CP1252 to UTF-8,
+   2 UTF-8 sanitisation, 3 UTF-8 to ASCII. The caller owns the result. */
+libspectrum_error internal_tape_text_convert( const char *text, int mode,
+                                             char **result );
 
 /* glib replacement functions */
 

@@ -372,15 +372,14 @@ def capabilities(flags):
             "\n"
         )
 
-    if "HAVE_WAV_BACKEND" in flags:
-        out.append(
-            "\n/* we support wav files */\n"
-            "/* LIBSPECTRUM_SUPPORTS_AUDIOFILE is deprecated; use "
-            "LIBSPECTRUM_SUPPORTS_WAV instead. */\n"
-            "#define\tLIBSPECTRUM_SUPPORTS_AUDIOFILE\t(1)\n"
-            "#define\tLIBSPECTRUM_SUPPORTS_WAV\t(1)\n"
-            "\n"
-        )
+    out.append(
+        "\n/* we support wav files */\n"
+        "/* LIBSPECTRUM_SUPPORTS_AUDIOFILE is deprecated; use "
+        "LIBSPECTRUM_SUPPORTS_WAV instead. */\n"
+        "#define\tLIBSPECTRUM_SUPPORTS_AUDIOFILE\t(1)\n"
+        "#define\tLIBSPECTRUM_SUPPORTS_WAV\t(1)\n"
+        "\n"
+    )
 
     return "".join(out)
 

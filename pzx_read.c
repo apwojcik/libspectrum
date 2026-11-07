@@ -81,8 +81,8 @@ read_pzxt_block( libspectrum_tape *tape, const libspectrum_byte **buffer,
 
   if( data_length < 2 ) {
     libspectrum_print_error( LIBSPECTRUM_ERROR_CORRUPT,
-                             "read_pzxt_block: length %zu too short",
-                             data_length );
+                             "read_pzxt_block: length %lu too short",
+                             (unsigned long)data_length );
     return LIBSPECTRUM_ERROR_CORRUPT;
   }
 
@@ -486,7 +486,7 @@ read_block( libspectrum_tape *tape, const libspectrum_byte **buffer,
   error = read_block_header( id, &data_length, buffer, end );
   if( error ) return error;
 
-  if( end - *buffer < data_length ) {
+  if( (size_t)( end - *buffer ) < data_length ) {
     libspectrum_print_error(
       LIBSPECTRUM_ERROR_CORRUPT,
       "read_block: block length goes beyond end of file"
@@ -600,7 +600,8 @@ pzx_read_string( const libspectrum_byte **ptr, const libspectrum_byte *end,
 {
   const libspectrum_byte *nul;
   size_t length;
-  char *ptr2;
+  char *ptr2, *utf8;
+  libspectrum_error error;
 
   /* Locate the NUL terminator within the available data; if absent, treat
      end-of-block as the string boundary */
@@ -617,5 +618,9 @@ pzx_read_string( const libspectrum_byte **ptr, const libspectrum_byte *end,
   /* Translate line endings */
   for( ptr2 = *dest; *ptr2; ptr2++ ) if( *ptr2 == '\r' ) *ptr2 = '\n';
 
+  error = internal_tape_text_convert( *dest, 2, &utf8 );
+  if( error ) return error;
+  libspectrum_free( *dest );
+  *dest = utf8;
   return LIBSPECTRUM_ERROR_NONE;
 }

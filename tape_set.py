@@ -104,6 +104,16 @@ def parse_and_emit(lines, out):
             if not _perl_truthy(member):
                 member = name
 
+            if name == 'level' and member_type == 'rle_pulse':
+                out.append(
+                    "    case LIBSPECTRUM_TAPE_BLOCK_RLE_PULSE:\n"
+                    "      if( level < -1 || level > 1 ) return LIBSPECTRUM_ERROR_INVALID;\n"
+                    "      block->types.rle_pulse.has_initial_level = level != -1;\n"
+                    "      block->types.rle_pulse.initial_level = level == 1;\n"
+                    "      break;\n"
+                )
+                continue
+
             out.append(
                 "    case LIBSPECTRUM_TAPE_BLOCK_%s: block->types.%s.%s = %s%s; break;\n"
                 % (

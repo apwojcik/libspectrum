@@ -18,10 +18,10 @@
 #cmakedefine HAVE_LIBBZ2
 #cmakedefine HAVE_GCRYPT_H
 #cmakedefine HAVE_LIB_GLIB
-#cmakedefine HAVE_WAV_BACKEND
-#cmakedefine HAVE_LIB_AUDIOFILE
+#cmakedefine HAVE_ICONV
+#define ICONV_CONST @ICONV_CONST@
 #cmakedefine HAVE_MACOS_NATIVE_WAV
-#cmakedefine WAV_INTERNAL_AUDIOFILE
+#cmakedefine WAV_INTERNAL_PCM
 #cmakedefine WAV_INTERNAL_MACOS
 
 #cmakedefine WIN32_LEAN_AND_MEAN

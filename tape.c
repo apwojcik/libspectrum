@@ -290,16 +290,7 @@ libspectrum_tape_read( libspectrum_tape *tape, const libspectrum_byte *buffer,
     error = libspectrum_csw_read( tape, buffer, length ); break;
 
   case LIBSPECTRUM_ID_TAPE_WAV:
-#ifdef HAVE_WAV_BACKEND
     error = libspectrum_wav_read( tape, filename ); break;
-#else     /* #ifdef HAVE_WAV_BACKEND */
-    error = LIBSPECTRUM_ERROR_LOGIC;
-    libspectrum_print_error(
-      LIBSPECTRUM_ERROR_LOGIC,
-      "libspectrum_tape_read: format not supported without a WAV backend"
-    );
-    break;
-#endif    /* #ifdef HAVE_WAV_BACKEND */
 
   case LIBSPECTRUM_ID_TAPE_PZX:
     error = internal_pzx_read( tape, buffer, length ); break;
@@ -561,8 +552,8 @@ libspectrum_tape_get_next_edge_internal( libspectrum_dword *tstates,
       } else {
         int first_pulse = it->block_state.rle_pulse.index == 0;
 
-        /* The incoming low level is already established. Do not
-           override a single pulse's closing edge with FORCE_LOW. */
+        /* The first event holds the incoming level, even for a sole pulse.
+           Do not override it with a forced transition at tape start. */
         if( first_pulse && it->force_low_level )
           it->force_low_level = 0;
 
@@ -571,10 +562,9 @@ libspectrum_tape_get_next_edge_internal( libspectrum_dword *tstates,
                                 &end_of_block );
         if( error ) return error;
 
-        /* Multi-pulse CSW starts at the incoming level. A sole pulse
-           still needs its closing edge at its actual end, not at a
-           zero-duration end-of-tape event. */
-        if( first_pulse && !end_of_block )
+        /* Events describe the level held during the pulse, not its closing
+           edge. Pulse count must not change the first pulse's polarity. */
+        if( first_pulse )
           *flags |= LIBSPECTRUM_TAPE_FLAGS_NO_EDGE;
 
         if( end_of_block ) {
@@ -585,12 +575,17 @@ libspectrum_tape_get_next_edge_internal( libspectrum_dword *tstates,
       break;
 
     case LIBSPECTRUM_TAPE_BLOCK_RLE_PULSE:
-      /* Exact-rate recordings inherit their initial polarity. Scale-only
-         pulse lists keep the legacy toggle-before-pulse convention. */
-      if( block->types.rle_pulse.sample_rate &&
-          it->block_state.rle_pulse.index == 0 )
-        *flags |= it->signal_level ? LIBSPECTRUM_TAPE_FLAGS_LEVEL_HIGH :
-                                     LIBSPECTRUM_TAPE_FLAGS_LEVEL_LOW;
+      /* An explicit level belongs to the first run, not to an extra edge.
+         Otherwise preserve inherited exact-rate and legacy scaled behaviour. */
+      if( it->block_state.rle_pulse.index == 0 ) {
+        libspectrum_tape_rle_pulse_block *rle = &block->types.rle_pulse;
+        if( rle->has_initial_level || rle->sample_rate ) {
+          int level = rle->has_initial_level ? rle->initial_level :
+                                              (int)it->signal_level;
+          *flags |= level ? LIBSPECTRUM_TAPE_FLAGS_LEVEL_HIGH :
+                            LIBSPECTRUM_TAPE_FLAGS_LEVEL_LOW;
+        }
+      }
       error = rle_pulse_edge( &(block->types.rle_pulse),
                               &(it->block_state.rle_pulse), tstates, &end_of_block);
       if( error ) return error;
@@ -655,9 +650,9 @@ libspectrum_tape_get_next_edge_internal( libspectrum_dword *tstates,
       if( libspectrum_tape_iterator_current( it->current_block ) == nullptr ) {
 	*flags |= LIBSPECTRUM_TAPE_FLAGS_STOP;
         *flags |= LIBSPECTRUM_TAPE_FLAGS_TAPE;
-        /* Need to have an edge at the end of the tape to terminate the last
-           pulse so clear the NO_EDGE flag if it has been set */
-        *flags &= ~LIBSPECTRUM_TAPE_FLAGS_NO_EDGE;
+        /* A zero-time terminal event closes the last pulse. A timed event
+           still describes that pulse, so preserve its transition semantics. */
+        if( !*tstates ) *flags &= ~LIBSPECTRUM_TAPE_FLAGS_NO_EDGE;
         libspectrum_tape_iterator_init( &(it->current_block), tape );
         end_of_block = END_OF_BLOCK_NEXT_LOW;
       }
@@ -1299,6 +1294,13 @@ set_tstates_and_flags( libspectrum_tape_generalised_data_symbol *symbol,
 {
   *tstates = symbol->lengths[ edge ];
 
+  /* A zero length terminates the symbol; it is not a zero-time pulse.
+     An empty symbol therefore has no polarity effect. */
+  if( !*tstates ) {
+    *flags |= LIBSPECTRUM_TAPE_FLAGS_NO_EDGE;
+    return;
+  }
+
   if( !edge ) {
     switch( symbol->edge_type ) {
     case LIBSPECTRUM_TAPE_GENERALISED_DATA_SYMBOL_EDGE:
@@ -1336,8 +1338,8 @@ generalised_data_edge( libspectrum_tape_generalised_data_block *block,
 			   flags );
 
     state->edges_through_symbol++;
-    if( state->edges_through_symbol == table->max_pulses    ||
-	symbol->lengths[ state->edges_through_symbol ] == 0    ) {
+    if( !*tstates || state->edges_through_symbol == table->max_pulses ||
+        symbol->lengths[ state->edges_through_symbol ] == 0 ) {
       state->edges_through_symbol = 0;
       if( ++state->symbols_through_run == block->pilot_repeats[ state->run ] ) {
 	state->symbols_through_run = 0;
@@ -1365,8 +1367,8 @@ generalised_data_edge( libspectrum_tape_generalised_data_block *block,
 			   flags );
 
     state->edges_through_symbol++;
-    if( state->edges_through_symbol == table->max_pulses    ||
-	symbol->lengths[ state->edges_through_symbol ] == 0    ) {
+    if( !*tstates || state->edges_through_symbol == table->max_pulses ||
+        symbol->lengths[ state->edges_through_symbol ] == 0 ) {
       if( ++state->symbols_through_stream == table->symbols_in_block ) {
 	state->state = LIBSPECTRUM_TAPE_STATE_PAUSE;
       } else {
@@ -1478,9 +1480,8 @@ pulse_sequence_edge( libspectrum_tape_pulse_sequence_block *block,
     *flags |= new_level ? LIBSPECTRUM_TAPE_FLAGS_LEVEL_HIGH :
                           LIBSPECTRUM_TAPE_FLAGS_LEVEL_LOW;
     state->level = new_level;
-  } else if( !(*tstates) ) {
-    /* If the net effect of this edge was 0 tstates and no level change, it was
-       much ado about nothing */
+  } else {
+    /* Zero pulses can cancel the transition before a timed pulse too. */
     *flags |= LIBSPECTRUM_TAPE_FLAGS_NO_EDGE;
   }
 

@@ -39,7 +39,9 @@ endif()
 option(BUILD_SHARED_LIBS "Build libspectrum shared library" ON)
 option(ZLIB_SUPPORT "Use zlib for compressed file support" ON)
 option(BZIP2_SUPPORT "Use bzip2 for compressed file support" ON)
-option(WAV_SUPPORT "Enable WAV audio files" ON)
+set(WAV_BACKEND "auto" CACHE STRING "WAV backend: auto, pcm (portable) or macos (native)")
+set_property(CACHE WAV_BACKEND PROPERTY STRINGS auto pcm macos)
+option(ICONV_SUPPORT "Use iconv for CP1252 to UTF-8 conversion of tape metadata" ON)
 option(LIBGCRYPT_SUPPORT "Use libgcrypt for RZX signing/verification" ON)
 option(USE_FAKE_GLIB "Use the bundled myglib/ GLib replacement instead of real GLib" ${WIN32})
 option(LIBSPECTRUM_ENABLE_WARNINGS "Give lots of compiler warnings when using GCC/Clang" OFF)
@@ -189,37 +191,52 @@ else()
     list(APPEND LIBSPECTRUM_OPTIONAL_LIBS PkgConfig::GLIB)
 endif()
 
-# libaudiofile: optional non-Apple WAV backend, found via pkg-config. Not every platform building this (e.g. Windows, with
-# USE_FAKE_GLIB default ON) has pkg-config available, so probe for it
-# rather than requiring it outright.
-set(audiofile_FOUND FALSE)
-if(WAV_SUPPORT AND NOT APPLE)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_check_modules(AUDIOFILE QUIET IMPORTED_TARGET audiofile)
-        if(AUDIOFILE_FOUND)
-            set(audiofile_FOUND TRUE)
-            list(APPEND LIBSPECTRUM_OPTIONAL_LIBS PkgConfig::AUDIOFILE)
+# iconv: optional; used to convert CP1252 tape metadata to UTF-8. Part of
+# libc on glibc/macOS/Windows-less platforms, otherwise a separate libiconv.
+set(ICONV_CONST "")
+if(ICONV_SUPPORT)
+    check_include_file(iconv.h HAVE_ICONV_H)
+    if(HAVE_ICONV_H)
+        include(CheckCSourceCompiles)
+        include(CheckLibraryExists)
+        check_symbol_exists(iconv_open "iconv.h" HAVE_ICONV_IN_LIBC)
+        if(HAVE_ICONV_IN_LIBC)
+            set(HAVE_ICONV TRUE)
         else()
-            message(STATUS "libaudiofile not found, building without WAV support")
+            find_library(ICONV_LIBRARY NAMES iconv)
+            if(ICONV_LIBRARY)
+                set(HAVE_ICONV TRUE)
+                list(APPEND LIBSPECTRUM_OPTIONAL_LIBS ${ICONV_LIBRARY})
+                set(LIBSPECTRUM_ICONV_LIBS "-liconv")
+            endif()
         endif()
-    else()
-        message(STATUS "pkg-config not found, building without WAV support")
+        if(HAVE_ICONV)
+            check_c_source_compiles("
+                #include <iconv.h>
+                extern size_t iconv( iconv_t, char **, size_t *, char **, size_t * );
+                int main(void) { return 0; }
+            " LIBSPECTRUM_ICONV_NON_CONST)
+            if(NOT LIBSPECTRUM_ICONV_NON_CONST)
+                set(ICONV_CONST "const")
+            endif()
+        endif()
     endif()
 endif()
 
-# Mirrors what the WAV_SUPPORT/audiofile_FOUND logic further down actually
-# resolves to, so the public header's LIBSPECTRUM_SUPPORTS_WAV macro
-# doesn't claim support that isn't backed by a compiled backend.
-if(WAV_SUPPORT AND (APPLE OR audiofile_FOUND))
-    set(HAVE_WAV_BACKEND TRUE)
-endif()
-if(HAVE_WAV_BACKEND AND APPLE)
-    set(HAVE_MACOS_NATIVE_WAV TRUE)
+# WAV: the portable PCM reader is always built; on Apple the native
+# AudioToolbox reader can be selected instead with -DWAV_BACKEND=macos.
+if(WAV_BACKEND STREQUAL "macos")
+    if(NOT APPLE)
+        message(FATAL_ERROR "WAV_BACKEND=macos requires an Apple platform")
+    endif()
     set(WAV_INTERNAL_MACOS TRUE)
-elseif(HAVE_WAV_BACKEND)
-    set(HAVE_LIB_AUDIOFILE TRUE)
-    set(WAV_INTERNAL_AUDIOFILE TRUE)
+    set(HAVE_MACOS_NATIVE_WAV TRUE)
+    set(LIBSPECTRUM_WAV_BACKEND macos)
+elseif(WAV_BACKEND STREQUAL "auto" OR WAV_BACKEND STREQUAL "pcm")
+    set(WAV_INTERNAL_PCM TRUE)
+    set(LIBSPECTRUM_WAV_BACKEND pcm)
+else()
+    message(FATAL_ERROR "invalid WAV_BACKEND '${WAV_BACKEND}'")
 endif()
 
 if(WIN32)
@@ -295,6 +312,7 @@ add_library(spectrum
     csw_write.c
     dck.c
     dsnap.c
+    ezx.c
     file.c
     ide.c
     libspectrum.c
@@ -306,6 +324,10 @@ add_library(spectrum
     pzx_internals.h
     pzx_read.c
     pzx_write.c
+    pzx_write_internal.h
+    pzx_write_plan.c
+    pzx_write_playback.c
+    pzx_write_validate.c
     rzx.c
     sna.c
     snapshot.c
@@ -318,6 +340,7 @@ add_library(spectrum
     tape.c
     tape_block.c
     tape_block.h
+    tape_text.c
     timings.c
     tzx_pzx.c
     tzx_read.c
@@ -382,14 +405,10 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     endif()
 endif()
 
-if(HAVE_WAV_BACKEND)
-    target_sources(spectrum PRIVATE wav.c wav_internals.h)
-    if (APPLE)
-        target_sources(spectrum PRIVATE wav_macos.c)
-    endif ()
-    if(audiofile_FOUND)
-        target_sources(spectrum PRIVATE wav_audiofile.c)
-    endif()
+target_sources(spectrum PRIVATE
+    wav.c wav_format.h wav_internals.h wav_pcm.c wav_write.c)
+if(WAV_INTERNAL_MACOS)
+    target_sources(spectrum PRIVATE wav_macos.c)
 endif()
 
 if(WIN32)
@@ -399,15 +418,15 @@ if(WIN32)
 endif()
 
 # Shared library ABI version, kept in step with the old libtool
-# -version-info current:revision:age (21:0:0 => libspectrum.so.21.0.0).
+# -version-info current:revision:age (22:0:1 => libspectrum.so.21.1.0).
 # Rules of thumb, as for libtool:
 # * Increase CURRENT whenever an interface has been added, removed or changed.
 # * Always increase REVISION.
 # * Increase AGE only if the ABI changes are backward compatible.
 # The soname is CURRENT - AGE, the file version CURRENT-AGE.AGE.REVISION.
-set(LIBSPECTRUM_ABI_CURRENT 21)
+set(LIBSPECTRUM_ABI_CURRENT 22)
 set(LIBSPECTRUM_ABI_REVISION 0)
-set(LIBSPECTRUM_ABI_AGE 0)
+set(LIBSPECTRUM_ABI_AGE 1)
 math(EXPR LIBSPECTRUM_ABI_MAJOR "${LIBSPECTRUM_ABI_CURRENT} - ${LIBSPECTRUM_ABI_AGE}")
 
 set_target_properties(spectrum PROPERTIES
@@ -459,13 +478,10 @@ install(FILES
     DESTINATION ${LIBSPECTRUM_CMAKE_INSTALL_DIR})
 
 set(WAV_BACKEND_PRIVATE_LIBS "")
-if(HAVE_WAV_BACKEND)
-    if(APPLE)
-        set(WAV_BACKEND_PRIVATE_LIBS "-framework AudioToolbox -framework CoreFoundation")
-    elseif(audiofile_FOUND)
-        set(WAV_BACKEND_PRIVATE_LIBS "${AUDIOFILE_LDFLAGS}")
-    endif()
+if(WAV_INTERNAL_MACOS)
+    set(WAV_BACKEND_PRIVATE_LIBS "-framework AudioToolbox -framework CoreFoundation")
 endif()
+set(ICONV_LIBS "${LIBSPECTRUM_ICONV_LIBS}")
 
 set(prefix ${CMAKE_INSTALL_PREFIX})
 set(exec_prefix "\${prefix}")
@@ -493,14 +509,13 @@ endfunction()
 libspectrum_yesno(_zlib HAVE_ZLIB_H)
 libspectrum_yesno(_bzip2 HAVE_LIBBZ2)
 libspectrum_yesno(_gcrypt HAVE_GCRYPT_H)
-libspectrum_yesno(_audiofile audiofile_FOUND)
 libspectrum_yesno(_macos_wav HAVE_MACOS_NATIVE_WAV)
 libspectrum_yesno(_fakeglib USE_FAKE_GLIB)
 message(STATUS "libspectrum is ready to be compiled")
 message(STATUS "zlib support: ${_zlib}")
 message(STATUS "bzip2 support: ${_bzip2}")
 message(STATUS "libgcrypt support: ${_gcrypt}")
-message(STATUS "libaudiofile support: ${_audiofile}")
+message(STATUS "selected WAV backend: ${LIBSPECTRUM_WAV_BACKEND}")
 message(STATUS "native macOS WAV support: ${_macos_wav}")
 message(STATUS "Internal GLib replacement: ${_fakeglib}")
 
@@ -537,6 +552,7 @@ if(LIBSPECTRUM_BUILD_TESTS)
 
     set(LIBSPECTRUM_TEST_FIXTURES
         ${CMAKE_CURRENT_BINARY_DIR}/test/complete-tzx.tzx
+        ${CMAKE_CURRENT_BINARY_DIR}/test/wav-exact-timing.wav
         ${CMAKE_CURRENT_BINARY_DIR}/test/wav-mono-threshold.wav
         ${CMAKE_CURRENT_BINARY_DIR}/test/wav-stereo-mixdown.wav)
 
@@ -547,7 +563,7 @@ if(LIBSPECTRUM_BUILD_TESTS)
                 > ${CMAKE_CURRENT_BINARY_DIR}/test/complete-tzx.tzx
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test/complete-tzx.py
         VERBATIM)
-    foreach(_kind mono-threshold stereo-mixdown)
+    foreach(_kind exact-timing mono-threshold stereo-mixdown)
         add_custom_command(
             OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/test/wav-${_kind}.wav
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/wav-fixtures.py
@@ -576,12 +592,16 @@ if(LIBSPECTRUM_BUILD_TESTS)
         test/tape-edges.c
         test/tape-iterator.c
         test/tape.c
+        test/tape-text.c
         test/pzx-write.c
+        test/pzx-flow.c
         test/csw-write.c
+        test/rle-recordings.c
         test/tap-pzx.c
         test/timings.c
         test/utilities.c
         test/identify.c
+        test/wav.c
         ${LIBSPECTRUM_TEST_FIXTURES})
     set_target_properties(libspectrum_test PROPERTIES
         OUTPUT_NAME test

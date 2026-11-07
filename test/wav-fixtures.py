@@ -22,6 +22,12 @@ FIXTURES = {
         1, 0,
         0, 3,
     ]),
+    # Low initial polarity and extended RLE runs with fractional T-state
+    # lengths.
+    'exact-timing': (1, 48000, [
+        32767 if bit else -32768
+        for bit in (0, 1, 1, 0, 1, 0, 0, 1) for _ in range(301)
+    ]),
 }
 
 

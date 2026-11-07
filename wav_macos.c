@@ -26,7 +26,7 @@
 #include "internals.h"
 #include "wav_internals.h"
 
-struct libspectrum_wav_reader {
+struct internal_wav_reader {
   ExtAudioFileRef file;
   UInt32 channels;
 };
@@ -55,17 +55,18 @@ wav_macos_mix_frame( const SInt16 *samples, UInt32 channels )
 }
 
 libspectrum_error
-internal_wav_open( libspectrum_wav_reader **reader, const char *filename,
+internal_wav_open( internal_wav_reader **reader, const char *filename,
                    size_t *sample_rate, size_t *frame_count )
 {
-  libspectrum_wav_reader *state;
+  internal_wav_reader *state;
   AudioStreamBasicDescription file_format, client_format;
   CFURLRef url;
   UInt32 size;
   SInt64 frames;
   OSStatus status;
 
-  state = libspectrum_new0( libspectrum_wav_reader, 1 );
+  *reader = NULL;
+  state = libspectrum_new0( internal_wav_reader, 1 );
 
   url = CFURLCreateFromFileSystemRepresentation(
           nullptr, (const UInt8*)filename, (CFIndex)strlen( filename ), false );
@@ -155,7 +156,7 @@ internal_wav_open( libspectrum_wav_reader **reader, const char *filename,
 }
 
 libspectrum_error
-internal_wav_read( libspectrum_wav_reader *reader,
+internal_wav_read( internal_wav_reader *reader,
                    libspectrum_signed_word *buffer, size_t frames,
                    size_t *frames_read )
 {
@@ -194,7 +195,7 @@ internal_wav_read( libspectrum_wav_reader *reader,
 }
 
 void
-internal_wav_close( libspectrum_wav_reader *reader )
+internal_wav_close( internal_wav_reader *reader )
 {
   if( !reader ) return;
 

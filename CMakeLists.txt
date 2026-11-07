@@ -16,6 +16,11 @@ cmake_minimum_required(VERSION 4.2 FATAL_ERROR)
 
 project(libspectrum VERSION 1.8.0 LANGUAGES C)
 
+# windres.rc (DLL version resource) needs the RC language enabled.
+if(WIN32)
+    enable_language(RC)
+endif()
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # C23 is required project-wide.

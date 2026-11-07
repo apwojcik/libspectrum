@@ -88,7 +88,7 @@ libspectrum_wav_read( libspectrum_tape *tape, const char *filename )
   libspectrum_tape_block_set_bits_in_last_byte(
     block,
     length % LIBSPECTRUM_BITS_IN_BYTE ?
-      length % LIBSPECTRUM_BITS_IN_BYTE : LIBSPECTRUM_BITS_IN_BYTE
+      length % LIBSPECTRUM_BITS_IN_BYTE : (size_t)LIBSPECTRUM_BITS_IN_BYTE
   );
   data_length = tape_length / LIBSPECTRUM_BITS_IN_BYTE;
   libspectrum_tape_block_set_data_length( block, data_length );

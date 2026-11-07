@@ -56,16 +56,29 @@ build_one() {
 
   cd "$SRC"
 
-  sh ./autogen.sh
+  if [ -f CMakeLists.txt ]; then
+    cmake -S . -B build \
+      -DCMAKE_BUILD_TYPE=None \
+      -DCMAKE_C_FLAGS='-Og -g' \
+      -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+      -DUSE_FAKE_GLIB=ON \
+      -DLIBGCRYPT_SUPPORT=OFF \
+      -DWAV_SUPPORT=OFF
+    cmake --build build -j"$(nproc)"
+    cmake --install build
+  else
+    # Refs from before the move to CMake only have the Autotools build.
+    sh ./autogen.sh
 
-  CFLAGS='-Og -g' ./configure \
-    --prefix="$PREFIX" \
-    --with-fake-glib \
-    --without-libgcrypt \
-    --without-libaudiofile
+    CFLAGS='-Og -g' ./configure \
+      --prefix="$PREFIX" \
+      --with-fake-glib \
+      --without-libgcrypt \
+      --without-libaudiofile
 
-  make -j"$(nproc)"
-  make install
+    make -j"$(nproc)"
+    make install
+  fi
 
   abi-dumper \
     "$PREFIX/lib/libspectrum.so" \

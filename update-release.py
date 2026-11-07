@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 update-release.py — bump the release date (and optionally version) in
-libspectrum docs and configure.ac.
+libspectrum docs and CMakeLists.txt.
 
 Usage:
     ./update-release.py --date "12th June, 2026"
@@ -13,7 +13,7 @@ Updates:
   * the .TH line in doc/libspectrum.3
   * the last line of README
   * the top version line in README and doc/libspectrum.txt
-  * the version defines in configure.ac
+  * the project() version in CMakeLists.txt
 
 Copyright lines are never modified.
 """
@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parent
 MAN_PAGE = ROOT / "doc" / "libspectrum.3"
 README = ROOT / "README"
 DOC_TXT = ROOT / "doc" / "libspectrum.txt"
-CONFIGURE_AC = ROOT / "configure.ac"
+CMAKELISTS = ROOT / "CMakeLists.txt"
 
 # .TH line example:
 #   .TH libspectrum 3 "9th March, 2026" "Version 1.6.0" "Emulators"
@@ -140,51 +140,38 @@ def parse_version(version_str):
     return major, minor, micro, nano
 
 
-def update_configure_ac(version_str, dry_run):
-    """Update the version defines in configure.ac."""
-    if not CONFIGURE_AC.exists():
-        print("  skip  configure.ac  (not found)")
+def update_cmakelists(version_str, dry_run):
+    """Update the project() version in CMakeLists.txt."""
+    if not CMAKELISTS.exists():
+        print("  skip  CMakeLists.txt  (not found)")
         return False
 
-    major, minor, micro, nano = parse_version(version_str)
+    # Validates the version string (3 or 4 components).
+    parse_version(version_str)
 
-    text = CONFIGURE_AC.read_text()
+    text = CMAKELISTS.read_text()
+    new_text, count = re.subn(
+        r'(project\(libspectrum\s+VERSION\s+)\S+',
+        lambda m: m.group(1) + version_str,
+        text,
+        count=1,
+    )
 
-    replacements = {
-        r'm4_define\(\[libspectrum_version\],\s*\[\S+\]\)':
-            f'm4_define([libspectrum_version], [{version_str}])',
-        r'm4_define\(\[libspectrum_major_version\],\s*\[\S+\]\)':
-            f'm4_define([libspectrum_major_version], [{major}])',
-        r'm4_define\(\[libspectrum_minor_version\],\s*\[\S+\]\)':
-            f'm4_define([libspectrum_minor_version], [{minor}])',
-        r'm4_define\(\[libspectrum_micro_version\],\s*\[\S+\]\)':
-            f'm4_define([libspectrum_micro_version], [{micro}])',
-        r'm4_define\(\[libspectrum_nano_version\],\s*\[\S+\]\)':
-            f'm4_define([libspectrum_nano_version],  [{nano}])',
-    }
-
-    changed = False
-    for pattern, replacement in replacements.items():
-        new_text, count = re.subn(pattern, replacement, text)
-        if count:
-            changed = True
-        text = new_text
-
-    if not changed:
-        print("  skip  configure.ac  (no version defines found)")
+    if not count:
+        print("  skip  CMakeLists.txt  (no project() version found)")
         return False
 
     if dry_run:
-        print(f"  would update  configure.ac  (version -> {version_str})")
+        print(f"  would update  CMakeLists.txt  (version -> {version_str})")
     else:
-        CONFIGURE_AC.write_text(text)
-        print(f"  updated  configure.ac  (version -> {version_str})")
+        CMAKELISTS.write_text(new_text)
+        print(f"  updated  CMakeLists.txt  (version -> {version_str})")
     return True
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Update release date (and optionally version) in libspectrum docs and configure.ac.",
+        description="Update release date (and optionally version) in libspectrum docs and CMakeLists.txt.",
     )
     parser.add_argument(
         "--date",
@@ -203,7 +190,7 @@ def main():
     )
     args = parser.parse_args()
 
-    print("Scanning doc/libspectrum.3, README, doc/libspectrum.txt, and configure.ac ...")
+    print("Scanning doc/libspectrum.3, README, doc/libspectrum.txt, and CMakeLists.txt ...")
     print(f"  new date    : {args.date}")
     if args.version:
         print(f"  new version : {args.version}")
@@ -222,7 +209,7 @@ def main():
             changed += 1
         if update_version_header(DOC_TXT, args.version, args.dry_run):
             changed += 1
-        if update_configure_ac(args.version, args.dry_run):
+        if update_cmakelists(args.version, args.dry_run):
             changed += 1
 
     print()

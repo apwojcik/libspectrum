@@ -21,21 +21,34 @@ Currently supported are:
 * IDE hard disk images: .hdf (read/write).
 * Microdrive cartridge images: .mdr (read/write).
 
-On Unix and Mac OS X, compiling libspectrum should just be as easy as
+libspectrum is built with CMake (3.x is not enough: 4.2 or newer is
+required) and needs Python 3 and a C23 compiler. On Unix and Mac OS X,
+compiling libspectrum should just be as easy as
 
-$ ./configure
-$ make
+$ cmake -S . -B build
+$ cmake --build build
 
-and then `make install' should install it in `/usr/local' ready for
-use on your system. If you want to install it somewhere other than
-`/usr/local', give the `--prefix=DIR' option to `configure' to install
-it under `DIR'. Once installed, some work may still be necessary to
-ensure that the runtime linker can find libspectrum. For example, on
-some Linux systems you may need to run `ldconfig' as root after
-`make install' (for example `sudo ldconfig') before newly installed
-libraries in `/usr/local/lib' are found. Otherwise, follow the
-instructions printed by `make install' or your system's normal shared
-library configuration procedure.
+and then `cmake --install build' should install it in `/usr/local'
+ready for use on your system. If you want to install it somewhere other
+than `/usr/local', give the `-DCMAKE_INSTALL_PREFIX=DIR' option to
+`cmake' to install it under `DIR'. Once installed, some work may still
+be necessary to ensure that the runtime linker can find libspectrum.
+For example, on some Linux systems you may need to run `ldconfig' as
+root after installing (for example `sudo ldconfig') before newly
+installed libraries in `/usr/local/lib' are found.
+
+Useful options (all given as -DNAME=VALUE):
+
+  ZLIB_SUPPORT, BZIP2_SUPPORT   use zlib / bzip2 (default ON; fetched and
+                                built if not found on the system)
+  LIBGCRYPT_SUPPORT             RZX signing support via libgcrypt (ON)
+  WAV_SUPPORT                   WAV support via libaudiofile or the native
+                                macOS frameworks (ON)
+  USE_FAKE_GLIB                 use the bundled GLib replacement instead
+                                of GLib (default ON on Windows)
+  BUILD_SHARED_LIBS             build a shared library (ON)
+  LIBSPECTRUM_BUILD_TESTS       build the test suite; run it with `ctest'
+                                from the build directory (OFF)
 
 For details on the functions available, see `doc/libspectrum.txt'.
 Maintainer release notes are in `doc/releasing.md'.
@@ -50,27 +63,20 @@ For updates for libspectrum, its homepage is at:
 
 http://fuse-emulator.sourceforge.net/libspectrum.php
 
-Compiling from Git
-------------------
-
-If you're using version of libspectrum from Git rather than one
-of the released tarballs, you'll need to run `autogen.sh' before
-running 'configure' for the first time.
-
 Compiling for the Wii
 ---------------------
 
-To compile for the Wii, first make sure the dev tools are in your path
-(export PATH=$PATH:$DEVKITPPC/bin). Then, use this configure line:
+To compile for the Wii, use the devkitPro CMake toolchain file:
 
-./configure --target=powerpc-gekko --host=powerpc-gekko \
-            --prefix=$DEVKITPPC \
-            --without-libgcrypt --with-fake-glib --without-libaudiofile
+cmake -S . -B build \
+      -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Wii.cmake \
+      -DCMAKE_INSTALL_PREFIX=$DEVKITPPC \
+      -DLIBGCRYPT_SUPPORT=OFF -DUSE_FAKE_GLIB=ON -DWAV_SUPPORT=OFF
+cmake --build build
+cmake --install build
 
 That is assuming you don't have libgcrypt, glib and libaudiofile for the
 Wii. At the time of writing, those haven't been ported yet.
-
-Then, type "make" and if everything went well, "make install".
 
 Philip Kendall <philip-fuse@shadowmagic.org.uk>
 16th September, 2026

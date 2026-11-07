@@ -30,7 +30,7 @@ TEMPLATE is read line by line; any line containing one of the
 LIBSPECTRUM_* markers below is replaced by generated content, everything
 else is passed through unchanged. Feature flags (stdint.h, GLib, gcrypt,
 zlib, bz2, WAV backend) are read directly out of the build's config.h,
-which autoconf already fills in with the resolved HAVE_* defines - no
+which the build already fills in with the resolved HAVE_* defines - no
 compiled C probe is needed for that part.
 
 The one case the old C probe handled that config.h can't is the pre-C99

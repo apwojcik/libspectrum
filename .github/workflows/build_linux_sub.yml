@@ -113,40 +113,40 @@ jobs:
           path: ~/apt-cache
           key: apt-ubuntu-latest-libspectrum-${{ hashFiles('.github/workflows/build_linux_sub.yml') }}
 
-      - name: (6) Autogen.sh
-        run: |
-          echo "Running autogen.sh .."
-          ./autogen.sh
+      - name: (6) Set up CMake
+        uses: lukka/get-cmake@latest
 
       - name: (7) Configure for Linux
         run: |
-          echo "Running configure .."
-          ./configure \
-          ${{ inputs.use_zlib == false && '--without-zlib' || '' }} \
-          ${{ inputs.use_bzip2 == false && '--without-bzip2' || '' }} \
-          ${{ inputs.use_libgcrypt == false && '--without-libgcrypt' || '' }} \
-          ${{ inputs.use_libaudiofile == false && '--without-libaudiofile' || '' }} \
-          ${{ inputs.use_fake_glib == true && '--with-fake-glib' || '' }} \
-          | tee ./configure.out
+          echo "Running cmake .."
+          cmake -S . -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DLIBSPECTRUM_BUILD_TESTS=ON \
+          -DZLIB_SUPPORT=${{ inputs.use_zlib && 'ON' || 'OFF' }} \
+          -DBZIP2_SUPPORT=${{ inputs.use_bzip2 && 'ON' || 'OFF' }} \
+          -DLIBGCRYPT_SUPPORT=${{ inputs.use_libgcrypt && 'ON' || 'OFF' }} \
+          -DWAV_SUPPORT=${{ inputs.use_libaudiofile && 'ON' || 'OFF' }} \
+          -DUSE_FAKE_GLIB=${{ inputs.use_fake_glib && 'ON' || 'OFF' }} \
+          | tee ./cmake.out
 
-      - name: (8) Verify output from configure
+      - name: (8) Verify output from cmake
         run: |
-          .github/scripts/in_config.sh "libspectrum is ready to be compiled"
-          .github/scripts/in_config.sh "zlib support: ${{ inputs.use_zlib && 'yes' || 'no' }}"
-          .github/scripts/in_config.sh "bzip2 support: ${{ inputs.use_bzip2 && 'yes' || 'no' }}"
-          .github/scripts/in_config.sh "libgcrypt support: ${{ inputs.use_libgcrypt && 'yes' || 'no' }}"
-          .github/scripts/in_config.sh "libaudiofile support: ${{ inputs.use_libaudiofile && 'yes' || 'no' }}"
-          .github/scripts/in_config.sh "Internal GLib replacement: ${{ inputs.use_fake_glib && 'yes' || 'no' }}"
+          .github/scripts/in_cmake.sh "libspectrum is ready to be compiled"
+          .github/scripts/in_cmake.sh "zlib support: ${{ inputs.use_zlib && 'yes' || 'no' }}"
+          .github/scripts/in_cmake.sh "bzip2 support: ${{ inputs.use_bzip2 && 'yes' || 'no' }}"
+          .github/scripts/in_cmake.sh "libgcrypt support: ${{ inputs.use_libgcrypt && 'yes' || 'no' }}"
+          .github/scripts/in_cmake.sh "libaudiofile support: ${{ inputs.use_libaudiofile && 'yes' || 'no' }}"
+          .github/scripts/in_cmake.sh "Internal GLib replacement: ${{ inputs.use_fake_glib && 'yes' || 'no' }}"
 
-      - name: (9) Make
+      - name: (9) Build
         run: |
-          echo "Running make .."
-          make
+          echo "Running cmake --build .."
+          cmake --build build
 
       - name: (10) Install
         run: |
-          echo "Running make install .."
-          sudo make install
+          echo "Running cmake --install .."
+          sudo cmake --install build
 
       - name: (11) Copy dependencies
         run: |
@@ -156,12 +156,13 @@ jobs:
         id: run-tests
         run: |
           echo "Building and running tests .."
-          make check
+          cd build
+          ctest --output-on-failure
 
       - name: (13) Verbose check tests (on failure)
         if: failure() && steps.run-tests.outcome != 'success'
         run: |
-          cd ${GITHUB_WORKSPACE}
+          cd ${GITHUB_WORKSPACE}/build
           
           echo "Listing all tests individually .."
           test/test

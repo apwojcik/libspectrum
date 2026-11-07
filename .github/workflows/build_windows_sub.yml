@@ -102,14 +102,12 @@ jobs:
           platform: x86
           packages: |
             audiofile \
-            autoconf \
-            automake \
             bison \
             flex \
             gcc-core \
             gcc-g++ \
+            cmake \
             gettext-devel \
-            libtool \
             libaudiofile-devel \
             make \
             mingw64-i686-audiofile \
@@ -135,53 +133,55 @@ jobs:
             C:\cygwin-packages
           key: cygwin-packages-libspectrum-${{ hashFiles('.github/workflows/build_windows_sub.yml') }}
 
-      - name: (6) Autogen.sh
+      - name: (6) Prepare CMake
         run: |
           cd ${GITHUB_WORKSPACE}
           
-          echo "Running autogen.sh .."
-          ./autogen.sh
+          cmake --version
 
       - name: (7) Configure for Windows (fake glib)
         run: |
           cd ${GITHUB_WORKSPACE}
           
-          echo "Running configure .."
-          ./configure \
-          --build=i686-pc-cygwin \
-          --host=i686-w64-mingw32 \
-          --prefix=/usr/local/i686-w64-mingw32 \
-          --with-fake-glib \
-          ${{ inputs.use_zlib == false && '--without-zlib' || '' }} \
-          ${{ inputs.use_bzip2 == false && '--without-bzip2' || '' }} \
-          ${{ inputs.use_libgcrypt == false && '--without-libgcrypt' || '' }} \
-          ${{ inputs.use_libaudiofile == false && '--without-libaudiofile' || '' }} \
-          | tee ./configure.out
+          echo "Running cmake .."
+          cmake -S . -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_SYSTEM_NAME=Windows \
+          -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc \
+          -DCMAKE_FIND_ROOT_PATH=/usr/i686-w64-mingw32/sys-root/mingw \
+          -DCMAKE_INSTALL_PREFIX=/usr/local/i686-w64-mingw32 \
+          -DLIBSPECTRUM_BUILD_TESTS=ON \
+          -DUSE_FAKE_GLIB=ON \
+          -DZLIB_SUPPORT=${{ inputs.use_zlib && 'ON' || 'OFF' }} \
+          -DBZIP2_SUPPORT=${{ inputs.use_bzip2 && 'ON' || 'OFF' }} \
+          -DLIBGCRYPT_SUPPORT=${{ inputs.use_libgcrypt && 'ON' || 'OFF' }} \
+          -DWAV_SUPPORT=${{ inputs.use_libaudiofile && 'ON' || 'OFF' }} \
+          | tee ./cmake.out
 
-      - name: (8) Verify output from configure
+      - name: (8) Verify output from cmake
         run: |
           cd ${GITHUB_WORKSPACE}
           
-          .github/scripts/in_config.sh "libspectrum is ready to be compiled"
-          .github/scripts/in_config.sh "zlib support: ${{ inputs.use_zlib && 'yes' || 'no' }}"
-          .github/scripts/in_config.sh "bzip2 support: ${{ inputs.use_bzip2 && 'yes' || 'no' }}"
-          .github/scripts/in_config.sh "libgcrypt support: ${{ inputs.use_libgcrypt && 'yes' || 'no' }}"
-          .github/scripts/in_config.sh "libaudiofile support: ${{ inputs.use_libaudiofile && 'yes' || 'no' }}"
-          .github/scripts/in_config.sh "Internal GLib replacement: yes"
+          .github/scripts/in_cmake.sh "libspectrum is ready to be compiled"
+          .github/scripts/in_cmake.sh "zlib support: ${{ inputs.use_zlib && 'yes' || 'no' }}"
+          .github/scripts/in_cmake.sh "bzip2 support: ${{ inputs.use_bzip2 && 'yes' || 'no' }}"
+          .github/scripts/in_cmake.sh "libgcrypt support: ${{ inputs.use_libgcrypt && 'yes' || 'no' }}"
+          .github/scripts/in_cmake.sh "libaudiofile support: ${{ inputs.use_libaudiofile && 'yes' || 'no' }}"
+          .github/scripts/in_cmake.sh "Internal GLib replacement: yes"
 
-      - name: (9) Make
+      - name: (9) Build
         run: |
           cd ${GITHUB_WORKSPACE}
           
-          echo "Running make .."
-          make
+          echo "Running cmake --build .."
+          cmake --build build
 
       - name: (10) Install
         run: |
           cd ${GITHUB_WORKSPACE}
           
-          echo "Running make install-strip .."
-          make install-strip
+          echo "Running cmake --install --strip .."
+          cmake --install build --strip
 
       - name: (11) Copy dependency dlls
         run: |
@@ -202,7 +202,7 @@ jobs:
           ${{ inputs.use_libaudiofile && 'cp -f ${CYGWIN_LIBDIR}libOGG-0.dll .'       || ''}}
           
           echo "Copying own dll.."
-          cp -f .libs/libspectrum-*.dll .
+          cp -f build/libspectrum*.dll .
           
       - name: (12) Run tests
         id: run-tests
@@ -210,7 +210,8 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           
           echo "Building and running tests .."
-          make check
+          cd build
+          ctest --output-on-failure
 
       - name: (13) Verbose check tests (on failure)
         if: failure() && steps.run-tests.outcome != 'success'
@@ -218,7 +219,7 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           
           echo "Listing all tests individually .."
-          test/test.exe
+          build/test/test.exe
 
       - name: (14) Pack installed library files
         # Need to pack files to maintain permissions

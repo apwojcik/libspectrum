@@ -4,7 +4,7 @@
 
 This document describes the manual steps used to prepare a libspectrum
 release. The `update-release.py` helper updates release metadata in the
-main documentation files and in `configure.ac`, but it does not perform
+main documentation files and in `CMakeLists.txt`, but it does not perform
 the full release process by itself.
 
 ## Release metadata helper
@@ -42,14 +42,14 @@ When given `--version`, it also updates:
 
 - the top version line in `README`
 - the top version line in `doc/libspectrum.txt`
-- the version definitions in `configure.ac`
+- the `project()` version in `CMakeLists.txt`
 
 ### Files not updated
 
 The script does not update:
 
 - `ChangeLog`
-- `libspectrum_la_LDFLAGS` / libtool ABI version info in `Makefile.am`
+- the shared library `SOVERSION` in `CMakeLists.txt`
 - generated files
 - release tarballs, tags, or announcements
 
@@ -74,20 +74,18 @@ libspectrum or to prepare a release. If it is unavailable, update
 2. Run `update-release.py` with `--dry-run`.
 3. Run it again without `--dry-run` once the changes look correct.
 4. Review the resulting diff.
-5. If `configure.ac` changed, regenerate the build system as needed.
-6. Build the project.
-7. Run the test suite.
-8. Create the release tarball, tag, and publish using the normal
+5. Build the project.
+6. Run the test suite.
+7. Create the release tarball, tag, and publish using the normal
    maintainer process.
 
 ## Versioning notes
 
-The project release version in `configure.ac` is separate from the
-library ABI version tracked in `libspectrum_la_LDFLAGS` in `Makefile.am`.
-Review both during a release.
-
-For libtool versioning rules, see the comment above
-`libspectrum_la_LDFLAGS` in `Makefile.am`.
+The project release version in `CMakeLists.txt` (`project(... VERSION ...)`)
+is separate from the shared library ABI version, which is set through the
+`SOVERSION` property of the `spectrum` target in the same file. Review
+both during a release, and bump `SOVERSION` whenever the ABI changes
+incompatibly.
 
 ## ABI compatibility check with Docker
 
@@ -146,24 +144,26 @@ The helper script will:
 2. select the old ref and new ref to compare
 3. export each ref into a separate source tree without mutating your
    checkout
-4. bootstrap Autotools in each exported tree with `autogen.sh`
-5. configure both trees with a stable feature set
-6. build and install each tree into a separate prefix
-7. run `abi-dumper` on each installed shared library
-8. run `abi-compliance-checker` and write an HTML report under
+4. configure both trees with CMake using a stable feature set
+5. build and install each tree into a separate prefix
+6. run `abi-dumper` on each installed shared library
+7. run `abi-compliance-checker` and write an HTML report under
    `abi-out/`
 
-The configure flags used are:
+The CMake options used are:
 
 ```sh
---with-fake-glib --without-libgcrypt --without-libaudiofile
+-DUSE_FAKE_GLIB=ON -DLIBGCRYPT_SUPPORT=OFF -DWAV_SUPPORT=OFF
 ```
+
+Refs that predate the move to CMake have no `CMakeLists.txt`; for those
+the helper falls back to the old Autotools build.
 
 Using a fixed feature set helps keep the exported ABI consistent across
 runs and avoids accidental differences caused by optional dependencies.
 
 The Docker image also installs Universal Ctags for `abi-dumper`, and the
-helper configures builds with `CFLAGS='-Og -g'` to improve ABI analysis
+helper builds with `CFLAGS='-Og -g'` to improve ABI analysis
 and avoid `abi-dumper` warnings about release-style optimisation flags.
 
 By default, this compares committed `HEAD`. Uncommitted local changes in
@@ -176,8 +176,7 @@ The run creates these host-visible files under `abi-out/`:
 - `libspectrum-<ref>.dump` for each side of the comparison
 - `libspectrum-abi-report-<old>-to-<new>.html`
 
-Open the HTML report in a browser and use it, together with the libtool
-rules in `Makefile.am`, to decide whether `libspectrum_la_LDFLAGS`
+Open the HTML report in a browser and use it, to decide whether `SOVERSION`
 should change for a backward-compatible ABI update or an ABI break.
 
 ## Verification
@@ -185,9 +184,9 @@ should change for a backward-compatible ABI update or an ABI break.
 After updating release metadata, verify with:
 
 ```sh
-./configure
-make
-make check
+cmake -S . -B build -DLIBSPECTRUM_BUILD_TESTS=ON
+cmake --build build
+(cd build && ctest)
 ```
 
 Also inspect the diff manually to confirm the release date and version

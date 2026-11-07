@@ -12,31 +12,28 @@ recordings (.rzx), disk images (identification only), Timex cartridges
 ZX Spectrum emulator and related tools, so public API/ABI stability
 matters (see "ABI/versioning" below).
 
-## Build systems
+## Build system
 
-There are two build systems in this repo:
+The build is CMake only (`CMakeLists.txt`, needs CMake 4.2+ and `python3` on `PATH`). It builds the `spectrum` target from the checked-in sources, generating `libspectrum.h`/`snap_accessors.c`/`tape_accessors.c`/`tape_set.c` itself via the Python scripts (`generate.py`/`accessor.py`/`tape_accessors.py`/`tape_set.py`); the `test/complete-tzx.py`/`test/wav-fixtures.py` test fixtures are generated too. zlib and bzip2 are fetched and built if not found.
 
-- **Autotools** (primary, used by CI and releases): `autogen.sh` → `configure` → `make`. Needs `python3` on `PATH` (`generate.py`/`accessor.py`/`tape_accessors.py`/`tape_set.py` codegen, plus `test/complete-tzx.py`/`test/wav-fixtures.py` test fixtures).
-- **CMake** (`CMakeLists.txt`, newer): builds the `spectrum` target directly from the checked-in sources, generating `libspectrum.h`/`snap_accessors.c`/`tape_accessors.c`/`tape_set.c` itself via the same Python scripts as Autotools. Tests are opt-in: `cmake -DLIBSPECTRUM_BUILD_TESTS=ON`, then `ctest` (runs `test/test` from the build dir). Use Autotools for anything release-related.
-
-### Autotools workflow
+### Workflow
 
 ```sh
-./autogen.sh          # first time only, or after configure.ac/Makefile.am changes
-./configure
-make
-make check             # builds and runs test/test
-sudo make install
+cmake -S . -B build -DLIBSPECTRUM_BUILD_TESTS=ON
+cmake --build build
+(cd build && ctest)       # builds and runs test/test
+sudo cmake --install build
 ```
 
-Useful `configure` flags (see `.github/workflows/build_linux_sub.yml` / `build_windows_sub.yml` for the exact combinations CI exercises):
+Useful options (see `.github/workflows/build_linux_sub.yml` / `build_windows_sub.yml` for the exact combinations CI exercises):
 
-- `--without-zlib`, `--without-bzip2`, `--without-libgcrypt`, `--without-libaudiofile` — disable optional dependencies.
-- `--with-fake-glib` — use the internal GLib replacement (`myglib/`) instead of real GLib; this is how Windows/Cygwin and the Wii cross-build are configured, so changes touching glib-backed data structures (hash tables, slists, atomics) need to work under both real and fake glib.
+- `-DZLIB_SUPPORT=OFF`, `-DBZIP2_SUPPORT=OFF`, `-DLIBGCRYPT_SUPPORT=OFF`, `-DWAV_SUPPORT=OFF` — disable optional dependencies.
+- `-DUSE_FAKE_GLIB=ON` — use the internal GLib replacement (`myglib/`) instead of real GLib (default on Windows); this is how Windows/Cygwin and the Wii cross-build are configured, so changes touching glib-backed data structures (hash tables, slists, atomics) need to work under both real and fake glib.
+- `-DLIBSPECTRUM_ENABLE_WARNINGS=ON` — extra GCC/Clang warnings.
 
 ### Running tests
 
-`make check` builds `test/test` and runs the whole suite via automake's `TESTS` runner. To iterate on a subset directly:
+`ctest` (run from the build dir) builds and runs `test/test`. To iterate on a subset directly, run it from the build dir (fixtures are found relative to it):
 
 ```sh
 test/test                # run everything
@@ -45,7 +42,7 @@ test/test 5-10             # run a range
 test/test tzx              # run every test whose name or description contains "tzx" (substring match)
 ```
 
-`test/test` statically links against the library archive to reach private helpers directly (see `test_test_DEPENDENCIES` / `BUILD_TEST_ARCHIVE` in `test/Makefile.am`), so it needs a build, not just the installed shared library. Test registration lives in `test/registry.c` (`TEST_ENTRY` macros); add new tests there and implement them in the relevant `test/<area>.c` file.
+`test/test` statically links a default-visibility copy of the library (`spectrum_test` target) to reach private helpers directly, so it needs a build, not just the installed shared library. Test registration lives in `test/registry.c` (`TEST_ENTRY` macros); add new tests there, implement them in the relevant `test/<area>.c` file, and add new files to `libspectrum_test` in `CMakeLists.txt`.
 
 ### ABI compatibility check
 
@@ -56,7 +53,7 @@ docker build -f tools/Dockerfile.abi -t libspectrum-abi-check .
 docker run --rm -v "$PWD:/work" libspectrum-abi-check sh /work/tools/check-abi-in-docker.sh [<old-ref> [<new-ref>]]
 ```
 
-Report lands in `abi-out/`. See `doc/releasing.md` for full details and when to bump `libspectrum_la_LDFLAGS` (libtool version-info) in `Makefile.am`.
+Report lands in `abi-out/`. See `doc/releasing.md` for full details and when to bump `SOVERSION` in `CMakeLists.txt`.
 
 ## Architecture
 
@@ -79,7 +76,7 @@ When adding a new snapshot or tape-block field, add it to the relevant `.txt` fi
 - `rzx.c` — input recording format, including the DSA-signed competition mode (`crypto.c` does the signing/verification, backed by libgcrypt when available).
 - Disk/cartridge/misc: `ide.c` (.hdf drives), `microdrive.c` (.mdr), `dck.c` (Timex cartridges), `mmc.c`.
 - Support layer: `buffer.c` (growable byte buffer used by every writer), `utilities.c`, `memory.c`, `symbol_table.c`, `timings.c` (ms↔tstates conversions, pulse timing constants), `creator.c` (creator-info metadata embedded in output files), `file.c` (load-from-disk + type identification), `zip.c`/`zlib.c`/`bzip2.c` (compressed container support).
-- `myglib/` — minimal GLib replacement (hash table, slist, atomics) used when built `--with-fake-glib`, for platforms without real GLib (Windows/Cygwin builds, Wii).
+- `myglib/` — minimal GLib replacement (hash table, slist, atomics) used when built with `-DUSE_FAKE_GLIB=ON`, for platforms without real GLib (Windows/Cygwin builds, Wii).
 
 ### Public API conventions
 

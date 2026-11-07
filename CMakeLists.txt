@@ -18,7 +18,7 @@ project(libspectrum VERSION 1.8.0 LANGUAGES C)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# configure.ac also requires C23 project-wide (checked via AC_COMPILE_IFELSE).
+# C23 is required project-wide.
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -56,7 +56,7 @@ include(GNUInstallDirs)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 # --- Feature detection for config.h -------------------------------------
-# Mirrors the autoconf checks in configure.ac; see cmake/config.h.cmake.in.
+# See cmake/config.h.cmake.in for the resulting defines.
 
 include(CheckIncludeFile)
 include(CheckSymbolExists)
@@ -138,9 +138,8 @@ if(BZIP2_SUPPORT)
 endif()
 
 # libgcrypt: optional; crypto.c is always compiled and self-guards on
-# HAVE_GCRYPT_H. CMake ships no official Find module, and configure.ac
-# itself only ever checks for the header before blindly linking -lgcrypt,
-# so mirror that rather than inventing a stricter check here.
+# HAVE_GCRYPT_H. CMake ships no official Find module, so just look for
+# the header and the library.
 if(LIBGCRYPT_SUPPORT)
     find_path(GCRYPT_INCLUDE_DIR gcrypt.h)
     find_library(GCRYPT_LIBRARY NAMES gcrypt)
@@ -153,9 +152,8 @@ if(LIBGCRYPT_SUPPORT)
 endif()
 
 # GLib: either real GLib (via pkg-config) or the bundled myglib/
-# replacement. Windows/Cygwin/Wii autotools builds already default to the
-# replacement (see CLAUDE.md); USE_FAKE_GLIB mirrors that default here so
-# Windows builds don't need pkg-config + glib-2.0 dev headers installed.
+# replacement. Windows/Cygwin/Wii builds use the replacement (see
+# CLAUDE.md); USE_FAKE_GLIB defaults to ON on Windows so those builds don't need pkg-config + glib-2.0 dev headers installed.
 set(LIBSPECTRUM_MYGLIB_SOURCES "")
 if(USE_FAKE_GLIB)
     include(CheckCSourceCompiles)
@@ -186,8 +184,7 @@ else()
     list(APPEND LIBSPECTRUM_OPTIONAL_LIBS PkgConfig::GLIB)
 endif()
 
-# libaudiofile: optional non-Apple WAV backend, found via pkg-config as in
-# configure.ac. Not every platform building this (e.g. Windows, with
+# libaudiofile: optional non-Apple WAV backend, found via pkg-config. Not every platform building this (e.g. Windows, with
 # USE_FAKE_GLIB default ON) has pkg-config available, so probe for it
 # rather than requiring it outright.
 set(audiofile_FOUND FALSE)
@@ -224,7 +221,10 @@ if(WIN32)
     set(WIN32_LEAN_AND_MEAN TRUE)
 endif()
 
-set(LIBSPECTRUM_RC_VERSION "${PROJECT_VERSION_MAJOR},${PROJECT_VERSION_MINOR},${PROJECT_VERSION_PATCH},0")
+if(NOT PROJECT_VERSION_TWEAK)
+    set(PROJECT_VERSION_TWEAK 0)
+endif()
+set(LIBSPECTRUM_RC_VERSION "${PROJECT_VERSION_MAJOR},${PROJECT_VERSION_MINOR},${PROJECT_VERSION_PATCH},${PROJECT_VERSION_TWEAK}")
 set(LIBSPECTRUM_COPYRIGHT "(c) 1999-2026 Philip Kendall and others")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.h.cmake.in
@@ -366,7 +366,7 @@ endif()
 # AM_CFLAGS = -fvisibility=hidden; LIBSPECTRUM_EXPORTS marks the public API.
 set_target_properties(spectrum PROPERTIES C_VISIBILITY_PRESET hidden)
 
-# configure.ac warning flags for GCC (and Clang, which accepts the same ones).
+# Warning flags for GCC (and Clang, which accepts the same ones).
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(spectrum PRIVATE
         -Wall -Wextra -Wsign-compare -Wwrite-strings)
@@ -400,10 +400,8 @@ set_target_properties(spectrum PROPERTIES
 target_compile_definitions(spectrum PRIVATE LIBSPECTRUM_EXPORTS)
 
 # --- Install ------------------------------------------------------------
-# Mirrors the autotools install (lib_LTLIBRARIES, nodist_include_HEADERS,
-# pkgconfig_DATA in Makefile.am): the library itself, the generated public
-# header, and a pkg-config file derived from the same libspectrum.pc.in
-# template autotools uses.
+# The library itself, the generated public header, the man page, and a
+# pkg-config file derived from libspectrum.pc.in.
 
 install(TARGETS spectrum
     EXPORT libspectrumTargets
@@ -412,6 +410,7 @@ install(TARGETS spectrum
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 install(FILES ${LIBSPECTRUM_H} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES doc/libspectrum.3 DESTINATION ${CMAKE_INSTALL_MANDIR}/man3)
 
 # CMake package configuration, so consumers can do
 # find_package(libspectrum) and link against libspectrum::spectrum
@@ -463,8 +462,33 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libspectrum.pc.in
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libspectrum.pc
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
+# --- Summary ------------------------------------------------------------
+# Checked by the CI workflows (.github/scripts/in_cmake.sh).
+
+function(libspectrum_yesno OUTVAR)
+    if(${ARGN})
+        set(${OUTVAR} yes PARENT_SCOPE)
+    else()
+        set(${OUTVAR} no PARENT_SCOPE)
+    endif()
+endfunction()
+
+libspectrum_yesno(_zlib HAVE_ZLIB_H)
+libspectrum_yesno(_bzip2 HAVE_LIBBZ2)
+libspectrum_yesno(_gcrypt HAVE_GCRYPT_H)
+libspectrum_yesno(_audiofile audiofile_FOUND)
+libspectrum_yesno(_macos_wav HAVE_MACOS_NATIVE_WAV)
+libspectrum_yesno(_fakeglib USE_FAKE_GLIB)
+message(STATUS "libspectrum is ready to be compiled")
+message(STATUS "zlib support: ${_zlib}")
+message(STATUS "bzip2 support: ${_bzip2}")
+message(STATUS "libgcrypt support: ${_gcrypt}")
+message(STATUS "libaudiofile support: ${_audiofile}")
+message(STATUS "native macOS WAV support: ${_macos_wav}")
+message(STATUS "Internal GLib replacement: ${_fakeglib}")
+
 # --- Tests --------------------------------------------------------------
-# Mirrors test/Makefile.am: test/test links a static copy of the library so
+# test/test links a static copy of the library so
 # it can reach private helpers (hidden in the shared library), and runs from
 # the build directory because DYNAMIC_TEST_PATH() is relative to it.
 
